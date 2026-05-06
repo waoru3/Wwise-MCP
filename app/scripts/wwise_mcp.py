@@ -629,6 +629,13 @@ def get_all_property_name_valid_values() -> str:
         logger.exception("Failed to get all property names and associated valid value ranges.")
         raise
 
+def delete_object(object_ref: str) -> dict:
+    try: 
+        return WwisePythonLibrary.delete_object(object_ref)
+    except Exception:
+        logger.exception("Failed to delte object")
+        raise 
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -837,6 +844,11 @@ COMMANDS: dict[str, Command] = {
         func=get_all_property_name_valid_values, 
         doc ="Return a newline-formatted help string listing the correct WAAPI property identifiers for the specified Wwise object type."
              "Args: None. Returns: str."
+    ),
+    "delete_object": Command(
+        func=delete_object,
+        doc="Deletes a Wwise object by GUID, path, or qualified name. "
+            "Args: object_ref (str) - Object GUID, object path, or qualified object name."
     )
 }
 

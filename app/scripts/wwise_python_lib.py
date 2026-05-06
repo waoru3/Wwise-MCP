@@ -1669,6 +1669,50 @@ def create_object(
         raise RuntimeError(f"WAAPI error: {e}")
 
 # ==============================================================================
+#                   Deleting Objects in Wwise
+# ==============================================================================
+
+def delete_object(object_ref: str) -> dict:
+    """
+    Delete a Wwise object by GUID, path, or qualified name.
+
+    Example object_ref values:
+    - "\\Actor-Mixer Hierarchy\\Default Work Unit\\MySound"
+    - "{A076AA65-B71A-45BB-8841-5A20C52CE727}"
+    - "Event:Play_Footstep"
+
+    Returns the WAAPI response dict.
+    """
+    if not object_ref or not isinstance(object_ref, str) or not object_ref.strip():
+        raise WwiseValidationError("object_ref must be a non-empty string.")
+
+    try:
+        response = waapi_call("ak.wwise.core.object.delete", {
+            "object": object_ref.strip()
+        })
+
+        if response is None:
+            raise WwiseApiError(
+                "WAAPI returned None when deleting object",
+                operation="ak.wwise.core.object.delete",
+                details={"object_ref": object_ref}
+            )
+
+        return response
+
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Unexpected error deleting object: {str(e)}",
+            operation="ak.wwise.core.object.delete",
+            details={
+                "error_type": type(e).__name__,
+                "object_ref": object_ref
+            }
+        )
+
+# ==============================================================================
 #           Property Names & Valid Ranges for different Wwise Objects
 # ==============================================================================
 
