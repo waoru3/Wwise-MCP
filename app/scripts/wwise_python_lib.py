@@ -1047,9 +1047,10 @@ def get_all_gamesync_types(
     res = waapi_call("ak.wwise.core.object.get", args, options=opts)
 
     items = (res or {}).get("return")
-    if not items:
-        # Make the failure explicit so callers can handle it
+    if items is None:
         raise RuntimeError("WAAPI ak.wwise.core.object.get returned no 'return' field")
+    if not items:
+        return []
 
     # Filter out any partial objects defensively
     out = []
