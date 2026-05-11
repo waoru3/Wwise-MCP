@@ -660,7 +660,7 @@ COMMANDS: dict[str, Command] = {
         func=create_child_objects,
         doc="Create child objects given names and types of objects and the parent path, if no parent path(s) specified, function will use prev_response_objects as parents."
             "Args: child_names : list[str], child_types: list[str], parent_paths : list[str] eg. ['\\Actor-Mixer Hierarchy\\Default Work Unit', ...], prev_response_objects='$last' if previous function needs to pass returned values into this function."
-            "Object types : ActorMixer, Bus, AuxBus, RandomSequenceContainer, SwitchContainer, BlendContainer, Sound, WorkUnit, SoundBank, Folder, Attenuation."
+            "Object types : ActorMixer, PropertyContainer, Bus, AuxBus, RandomSequenceContainer, SwitchContainer, MusicSwitchContainer,BlendContainer, Sound, WorkUnit, SoundBank, Folder, Attenuation, MusicPlaylistContainer, MusicSegment."
     ), 
     "create_events" : Command(
         func=create_events,
