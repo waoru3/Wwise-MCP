@@ -1047,6 +1047,12 @@ async def execute_plan(plan: list[str]) -> dict[str, any]:
     Returns simple success/failure info.
     """
 
+    # Strip any undo group calls the AI may have included — execute_plan owns these
+    plan = [
+        step for step in plan
+        if not step.startswith("begin_undo_group") and not step.startswith("end_undo_group")
+    ]
+
     # Inject undo group wrapping around authoring steps
     if plan and "connect_to_wwise" in plan[0]:
         injected = (
