@@ -694,6 +694,20 @@ def assign_child_to_blend_track(
         logger.exception("Failed to assign child to blend track.")
         raise
 
+def assign_child_to_random_sequence_playlist(
+    container_path: str,
+    child_paths: list[str]
+) -> None:
+
+    try:
+        WwisePythonLibrary.assign_child_to_random_sequence_playlist(
+            container_path,
+            child_paths
+        )
+    except Exception:
+        logger.exception("Failed to assign children to random/sequence playlist.")
+        raise
+
 def get_selected_objects() -> list[dict]:
     try: 
         selected_objects = WwisePythonLibrary.get_selected_objects()
@@ -978,6 +992,13 @@ COMMANDS: dict[str, Command] = {
             "To enable crossfade: set property 'EnableCrossFading'=True and set reference "
             "'LayerCrossFadeControlInput' to the target Game Parameter via set_object_reference. "
             "Args: blend_track_id: str, child_path: str, edges: list[dict] | None. Returns None."
+    ),
+    "assign_child_to_random_sequence_playlist": Command(
+        func=assign_child_to_random_sequence_playlist,
+        doc="Assigns child objects to the playlist of a Random or Sequence Container."
+            "Args: container_path: str, child_paths: list[str]. "
+            "Children must already exist under the RandomSequenceContainer hierarchy. "
+            "Note: replaces exsiting playlist (listMode='replaceAll'). Returns None."
     ),
     "retrieve_selected_objs" : Command(
         func=get_selected_objects, 

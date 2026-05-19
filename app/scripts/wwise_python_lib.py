@@ -1599,6 +1599,38 @@ def assign_child_to_blend_track(
 
     return waapi_call("ak.wwise.core.blendContainer.addAssignment", args)
 
+def assign_child_to_random_sequence_playlist(
+    container_path: str,
+    child_paths: list[str]
+) -> dict:
+
+    if not container_path:
+        raise ValueError("container_path must be a valid Wwise object path or GUID.")
+
+    if not child_paths:
+        raise ValueError("child_paths must be a non-empty list of Wwise object paths or GUIDs.")
+
+    args = {
+        "objects": [
+            {
+                "object": container_path,
+                "@Playlist": [
+                    {
+                        "type": "PlaylistSlot",
+                        "name": "",
+                        "@PlaylistObject": child_path
+                    }
+                    for child_path in child_paths
+                ]
+            }
+        ],
+        "onNameConflict": "merge",
+        "listMode": "replaceAll" 
+        # TODO: Investigate ak.wwise.core.object.set list options for playlist management assignment behavior
+    }
+
+    return waapi_call("ak.wwise.core.object.set", args)
+
 def move_object_by_path(source_path: str, dst_path: str):
     """
     Move an object (by its path) to a new parent (by path).
