@@ -1525,9 +1525,65 @@ def set_property(
 
     return waapi_call(
         "ak.wwise.core.object.setProperty",
-        {"object": object_path, 
-            "property": property_name, 
+        {"object": object_path,
+            "property": property_name,
             "value": value})
+
+def add_effect_to_object(
+    object_path: str,
+    effect_ref: str,
+    *,
+    list_mode: str = "append",
+) -> dict:
+    """
+    Insert an Effect/ShareSet reference into the @Effects list of a
+    Bus, ActorMixer, or Sound via ak.wwise.core.object.set.
+
+    Parameters
+    ----------
+    object_path : str
+        Path/GUID of the host object (Bus, ActorMixer, etc).
+    effect_ref : str
+        Path or GUID of an existing Effect or ShareSet to insert.
+    list_mode : str
+        'append' (default) appends a new EffectSlot at the end.
+        'replaceAll' replaces the entire @Effects list with this entry.
+
+    WAAPI has no insert-at-index. To target a specific slot index,
+    call with list_mode='replaceAll' and supply the full ordered list
+    via a higher-level helper (out of scope here).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response from ak.wwise.core.object.set; shape
+        `{"objects": [...]}` per the WAAPI object.set schema.
+    """
+    if not object_path:
+        raise ValueError("object_path must be a non-empty string")
+    if not effect_ref:
+        raise ValueError("effect_ref must be a non-empty string")
+    if list_mode not in _OBJECT_SET_LIST_MODES:
+        raise ValueError(
+            f"list_mode must be one of {sorted(_OBJECT_SET_LIST_MODES)}, "
+            f"got {list_mode!r}"
+        )
+
+    return waapi_call(
+        "ak.wwise.core.object.set",
+        {
+            "objects": [
+                {
+                    "object": object_path,
+                    "@Effects": [
+                        {"type": "EffectSlot", "name": "", "@Effect": effect_ref}
+                    ],
+                }
+            ],
+            "onNameConflict": "merge",
+            "listMode": list_mode,
+        },
+    )
 
 def set_randomizer(
     object_path: str, 
