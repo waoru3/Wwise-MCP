@@ -1607,6 +1607,66 @@ def add_effect_to_object(
 
     return response
 
+
+_OBJECT_SET_NAME_CONFLICT_MODES = frozenset({"fail", "rename", "replace", "merge"})
+
+
+def create_effect_share_set(
+    parent_path: str,
+    name: str,
+    class_id: int,
+    *,
+    properties: dict[str, int | bool | float | str] | None = None,
+    on_name_conflict: str = "rename",
+) -> dict:
+    """
+    Create a Custom Effect / Effect ShareSet under `parent_path` (typically
+    `\\Effects\\Default Work Unit\\<folder>`) with the given plug-in classId.
+
+    Plug-in classId values are defined by the Wwise plug-in (see WAAPI
+    `wobjects_index`). Caller supplies the value; this wrapper does not
+    look them up.
+
+    Parameters
+    ----------
+    parent_path : str
+        Project path of the parent Work Unit or Folder.
+    name : str
+        Name of the new ShareSet.
+    class_id : int
+        Plug-in classId.
+    properties : dict | None
+        Optional initial properties: each key becomes an @<Key> accessor on
+        the new Effect.
+    on_name_conflict : str
+        'fail' | 'rename' | 'replace' | 'merge'. Default 'rename'.
+    """
+    if not parent_path:
+        raise ValueError("parent_path must be a non-empty string")
+    if not name:
+        raise ValueError("name must be a non-empty string")
+    if not isinstance(class_id, int) or isinstance(class_id, bool):
+        raise ValueError("class_id must be an int")
+    if on_name_conflict not in _OBJECT_SET_NAME_CONFLICT_MODES:
+        raise ValueError(
+            f"on_name_conflict must be one of {sorted(_OBJECT_SET_NAME_CONFLICT_MODES)}, "
+            f"got {on_name_conflict!r}"
+        )
+
+    child: dict = {"type": "Effect", "name": name, "classId": class_id}
+    for prop_name, prop_value in (properties or {}).items():
+        child[f"@{prop_name}"] = prop_value
+
+    return waapi_call(
+        "ak.wwise.core.object.set",
+        {
+            "objects": [{"object": parent_path, "children": [child]}],
+            "onNameConflict": on_name_conflict,
+        },
+    )
+
+
+
 def set_randomizer(
     object_path: str, 
     property_name: str, 

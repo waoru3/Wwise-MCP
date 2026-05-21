@@ -683,6 +683,30 @@ def add_effect_to_object(
         logger.exception("Failed to add Effect to object @Effects list.")
         raise
 
+
+def create_effect_share_set(
+    parent_path: str,
+    name: str,
+    class_id: int,
+    *,
+    properties: dict | None = None,
+    on_name_conflict: str = "rename",
+) -> dict:
+
+    try:
+        return WwisePythonLibrary.create_effect_share_set(
+            parent_path,
+            name,
+            class_id,
+            properties=properties,
+            on_name_conflict=on_name_conflict,
+        )
+    except Exception:
+        logger.exception("Failed to create Effect ShareSet.")
+        raise
+
+
+
 def set_object_randomizer(
     object_path: str,
     property_name: str,
@@ -823,7 +847,12 @@ COMMANDS: dict[str, Command] = {
         doc="Create child objects given names and types of objects and the parent path, if no parent path(s) specified, function will use prev_response_objects as parents."
             "Args: child_names : list[str], child_types: list[str], parent_paths : list[str] eg. ['\\Actor-Mixer Hierarchy\\Default Work Unit', ...], prev_response_objects='$last' if previous function needs to pass returned values into this function."
             "Object types : ActorMixer, PropertyContainer, Bus, AuxBus, RandomSequenceContainer, SwitchContainer, MusicSwitchContainer,BlendContainer, Sound, WorkUnit, SoundBank, Folder, Attenuation, MusicPlaylistContainer, MusicSegment."
-    ), 
+    ),
+    "create_effect_share_set" : Command(
+        func=create_effect_share_set,
+        doc="Create a Custom Effect or Effect ShareSet under parent_path (typically '\\Effects\\Default Work Unit\\<folder>') with the given plug-in classId and optional initial properties. "
+            "Args: parent_path : str, name : str, class_id : int, properties : dict | None = None, on_name_conflict : str = 'rename'. Returns dict."
+    ),
     "create_blend_tracks" : Command(
         func=create_blend_tracks,
         doc="Creates Blend Tracks inside Blend Containers."
