@@ -662,8 +662,25 @@ def set_object_property(
 
     try:
         WwisePythonLibrary.set_property(object_path, property_name, value)
-    except Exception: 
+    except Exception:
         logger.exception("Failed to set object property.")
+        raise
+
+def add_effect_to_object(
+    object_path: str,
+    effect_ref: str,
+    *,
+    list_mode: str = "append",
+) -> dict:
+
+    try:
+        return WwisePythonLibrary.add_effect_to_object(
+            object_path,
+            effect_ref,
+            list_mode=list_mode,
+        )
+    except Exception:
+        logger.exception("Failed to add Effect to object @Effects list.")
         raise
 
 def set_object_randomizer(
@@ -996,6 +1013,11 @@ COMMANDS: dict[str, Command] = {
         func=set_object_property,
         doc="Sets the property of the object to a new value given its path in wwise"
             "Args: object_path : str, property_name : str, value: int | bool | str. Returns dict."
+    ),
+    "add_effect_to_object" : Command(
+        func=add_effect_to_object,
+        doc="Insert an Effect/ShareSet reference into the @Effects list of a Bus, ActorMixer, or Sound via ak.wwise.core.object.set. "
+            "Args: object_path : str, effect_ref : str, list_mode : str = 'append' (or 'replaceAll'). Returns dict."
     ),
     "set_object_randomizer" : Command(
         func=set_object_randomizer,
