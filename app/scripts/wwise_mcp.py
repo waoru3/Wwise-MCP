@@ -721,13 +721,15 @@ def assign_child_to_blend_track(
 
 def assign_child_to_random_sequence_playlist(
     container_path: str,
-    child_paths: list[str]
+    child_paths: list[str],
+    list_mode: str = "replaceAll",
 ) -> None:
 
     try:
         WwisePythonLibrary.assign_child_to_random_sequence_playlist(
             container_path,
-            child_paths
+            child_paths,
+            list_mode,
         )
     except Exception:
         logger.exception("Failed to assign children to random/sequence playlist.")
