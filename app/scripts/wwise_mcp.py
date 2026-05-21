@@ -427,21 +427,22 @@ def list_all_game_objects():
         raise
     
 def post_event(
-    event_name: str, 
-    go_name: str, 
-    delay_ms: int
+    event_name: str,
+    go_name: str,
+    delay_ms: int,
+    wait: bool = False,
 )-> int:
-    
-    try: 
-        if not event_name: 
-           raise ValueError("Pass in a non empty event name when posting an event.")
-       
-        if delay_ms < 0:
-            raise ValueError("Delay amount cannot be negative when posting an event.") 
 
-        return WwisePythonLibrary.post_event(event_name, go_name, delay_ms)
-    
-    except Exception: 
+    try:
+        if not event_name:
+           raise ValueError("Pass in a non empty event name when posting an event.")
+
+        if delay_ms < 0:
+            raise ValueError("Delay amount cannot be negative when posting an event.")
+
+        return WwisePythonLibrary.post_event(event_name, go_name, delay_ms, wait)
+
+    except Exception:
         logger.exception("Failed to post event %r", event_name)
         raise
 
