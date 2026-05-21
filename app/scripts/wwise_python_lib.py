@@ -738,17 +738,18 @@ def list_all_event_names(
 def post_event(
   event_name: str,
   game_obj: str,
-  delay_ms: int
+  delay_ms: int,
+  wait: bool = False,
 ) -> None:
 
   if delay_ms < 0:
     raise ValueError("delay_ms must be >= 0")
-  
-  if not game_obj: 
+
+  if not game_obj:
     game_obj = DEFAULT_GAME_OBJ_NAME
 
   ensure_game_obj(game_obj)
-  
+
   if delay_ms < 0:
     raise ValueError("delay_ms must be >= 0")
   if not game_obj:
@@ -760,7 +761,7 @@ def post_event(
     "ak.soundengine.postEvent",
     {"event": event_name, "gameObject": gid},
     due_in=delay_ms / 1000.0,   # schedule via dispatcher
-    wait=False                  # fire-and-forget
+    wait=wait,                  # caller-controlled: False = fire-and-forget, True = block on reply queue
     )
 
 def stop_event(
