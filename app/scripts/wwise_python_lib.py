@@ -1640,6 +1640,14 @@ def create_effect_share_set(
         the new Effect.
     on_name_conflict : str
         'fail' | 'rename' | 'replace' | 'merge'. Default 'rename'.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response from ak.wwise.core.object.set. Shape is
+        `{"objects": [{"id": "<guid>", "name": "<resolved name>", ...}]}`
+        per the WAAPI object.set schema; consumers needing the new
+        ShareSet's GUID/path should extract `response["objects"][0]`.
     """
     if not parent_path:
         raise ValueError("parent_path must be a non-empty string")
