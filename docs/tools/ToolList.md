@@ -325,13 +325,20 @@ Stops all sounds on all game objects in the captured session.
 ### `include_in_soundbank`
 
 **Description**  
-Includes specified objects (events, work units, folders, etc.) into one or more soundbanks by path.
+Includes specified objects (events, work units, folders, etc.) into a soundbank by path.
+
+**Arguments**
+
+- `include_paths: list[str]` — Wwise object paths to include in the soundbank.
+- `soundbank_path: str` — Target soundbank path.
+- `filter: list[str] | None = None` — Optional inclusion filter. Allowed values: `"events"`, `"structures"`, `"media"`. At most 3 entries, each value may appear only once (per the WAAPI `setInclusions` schema). When omitted, defaults to `["events", "structures"]`, which maps to `Filter=3` in the resulting `.wwu`. Pass `["events", "structures", "media"]` (`Filter=7`) when audio media must travel with the SoundBank instead of being streamed.
 
 **Example prompts**
 
 - “Include `\Events\Default Work Unit\Footsteps` in the soundbank `\SoundBanks\Default Work Unit\Footsteps_SoundBank`.”
 - “Add all events under `\Events\Weapons` to `\SoundBanks\Default Work Unit\Weapons_SB`.”
 - “Include these event paths [list] in the `MainGame` soundbank.”
+- “Include `\Events\Default Work Unit\Music` in `\SoundBanks\Default Work Unit\Music_SB` with media baked in (`filter=['events','structures','media']`).”
 
 ---
 
