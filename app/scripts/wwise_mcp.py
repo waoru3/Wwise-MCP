@@ -706,6 +706,25 @@ def create_effect_share_set(
         raise
 
 
+def set_plugin_property(
+    object_path: str,
+    property_name: str,
+    value: int | bool | float | str,
+    *,
+    platform: str | None = None,
+) -> dict:
+
+    try:
+        return WwisePythonLibrary.set_plugin_property(
+            object_path,
+            property_name,
+            value,
+            platform=platform,
+        )
+    except Exception:
+        logger.exception("Failed to set plug-in property via object.set.")
+        raise
+
 
 def set_object_randomizer(
     object_path: str,
@@ -1047,6 +1066,11 @@ COMMANDS: dict[str, Command] = {
         func=add_effect_to_object,
         doc="Insert an Effect/ShareSet reference into the @Effects list of a Bus, ActorMixer, or Sound via ak.wwise.core.object.set. "
             "Args: object_path : str, effect_ref : str, list_mode : str = 'append' (or 'replaceAll'). Returns dict."
+    ),
+    "set_plugin_property" : Command(
+        func=set_plugin_property,
+        doc="Set an Effect plug-in property via ak.wwise.core.object.set using the @<PropertyName> accessor. Use for plug-in-defined properties that the older setProperty silently rejects (Steam Audio Spatializer Reflections / Pathing / AirAbsorption / Occlusion / Transmission, Wwise Reverb plug-in params, etc.). "
+            "Args: object_path : str, property_name : str (without leading '@'), value : int|bool|float|str, platform : str | None = None. Returns dict."
     ),
     "set_object_randomizer" : Command(
         func=set_object_randomizer,
