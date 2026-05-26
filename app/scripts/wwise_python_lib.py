@@ -1649,14 +1649,20 @@ def create_effect_share_set(
         per the WAAPI object.set schema; consumers needing the new
         ShareSet's GUID/path should extract `response["objects"][0]`.
     """
-    if not parent_path:
-        raise ValueError("parent_path must be a non-empty string")
-    if not name:
-        raise ValueError("name must be a non-empty string")
+    if not isinstance(parent_path, str) or not parent_path.strip():
+        raise WwiseValidationError("parent_path must be a non-empty string")
+    if not isinstance(name, str) or not name.strip():
+        raise WwiseValidationError("name must be a non-empty string")
     if not isinstance(class_id, int) or isinstance(class_id, bool):
-        raise ValueError("class_id must be an int")
+        raise WwiseValidationError("class_id must be an int")
+    if class_id < 0 or class_id > 0xFFFFFFFF:
+        raise WwiseValidationError(
+            f"class_id must fit in WAAPI unsigned 32-bit range [0, 0xFFFFFFFF], got {class_id}"
+        )
+    if properties is not None and not isinstance(properties, dict):
+        raise WwiseValidationError("properties must be a dict if provided")
     if on_name_conflict not in _OBJECT_SET_NAME_CONFLICT_MODES:
-        raise ValueError(
+        raise WwiseValidationError(
             f"on_name_conflict must be one of {sorted(_OBJECT_SET_NAME_CONFLICT_MODES)}, "
             f"got {on_name_conflict!r}"
         )
@@ -1665,13 +1671,39 @@ def create_effect_share_set(
     for prop_name, prop_value in (properties or {}).items():
         child[f"@{prop_name}"] = prop_value
 
-    return waapi_call(
-        "ak.wwise.core.object.set",
-        {
-            "objects": [{"object": parent_path, "children": [child]}],
-            "onNameConflict": on_name_conflict,
-        },
-    )
+    args = {
+        "objects": [{"object": parent_path, "children": [child]}],
+        "onNameConflict": on_name_conflict,
+    }
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.object.set",
+            args,
+            options={"return": ["id", "name", "path", "type"]},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to create Effect ShareSet: {e}",
+            operation="ak.wwise.core.object.set",
+            details={
+                "error_type": type(e).__name__,
+                "parent_path": parent_path,
+                "name": name,
+                "class_id": class_id,
+            },
+        )
+
+    if response is None:
+        raise WwiseApiError(
+            "WAAPI returned None when creating Effect ShareSet",
+            operation="ak.wwise.core.object.set",
+            details={"parent_path": parent_path, "name": name},
+        )
+
+    return response
 
 
 
