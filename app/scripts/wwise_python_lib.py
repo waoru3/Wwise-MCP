@@ -757,11 +757,21 @@ def post_event(
 
   gid = ensure_game_obj(game_obj)  # your existing registrar / resolver
 
+  delay_s = delay_ms / 1000.0
+  call_kwargs: dict[str, Any] = {
+    "due_in": delay_s,
+    "wait": wait,
+  }
+  # Default reply timeout (WwiseSession._DEFAULT_TIMEOUT = 1.0s) is shorter than
+  # any non-trivial delay, so wait=True + delay_ms>0 would otherwise time out
+  # before the scheduled dispatch fires. Extend timeout to cover the schedule.
+  if wait and delay_s > 0:
+    call_kwargs["timeout"] = WwiseSession._DEFAULT_TIMEOUT + delay_s
+
   waapi_call(
     "ak.soundengine.postEvent",
     {"event": event_name, "gameObject": gid},
-    due_in=delay_ms / 1000.0,   # schedule via dispatcher
-    wait=wait,                  # caller-controlled: False = fire-and-forget, True = block on reply queue
+    **call_kwargs,
     )
 
 def stop_event(
