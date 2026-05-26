@@ -403,6 +403,24 @@ Sets a property value on a Wwise object given its path and property name. The va
 
 ---
 
+### `add_effect_to_object`
+
+**Description**  
+Insert an Effect or Effect ShareSet reference into the `@Effects` list of a Bus, Actor-Mixer, or Sound via `ak.wwise.core.object.set`. WAAPI has no insert-at-index; supply the full ordered list with `list_mode='replaceAll'` if specific slot ordering is required.
+
+**Arguments**
+
+- `object_path: str` — Path or GUID of the host object (Bus / Actor-Mixer / Sound).
+- `effect_ref: str` — Path or GUID of an existing Effect or ShareSet to insert.
+- `list_mode: str = 'append'` — `'append'` adds a new EffectSlot at the end; `'replaceAll'` replaces the entire `@Effects` list with the supplied entry.
+
+**Example prompts**
+
+- “Append the `\Effects\Default Work Unit\Spatializers\SteamAudio` ShareSet to the `\Master-Mixer Hierarchy\Master Audio Bus\SFX` bus's effect chain.”
+- “Replace all effects on `\Actor-Mixer Hierarchy\SFX\Ambience` with the `\Effects\Default Work Unit\Reverbs\RoomReverb` ShareSet (`list_mode='replaceAll'`).”
+
+---
+
 ### `retrieve_selected_objs`
 
 **Description**  
