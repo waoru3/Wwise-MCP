@@ -1893,6 +1893,136 @@ def set_rtpc_curve(
     return response if response is not None else {}
 
 
+def create_source_plugin(
+    parent_path: str,
+    name: str,
+    class_id: int,
+    *,
+    properties: dict[str, int | bool | float | str] | None = None,
+    language: str | None = None,
+    on_name_conflict: str = "rename",
+) -> dict:
+    """
+    Create a Source plug-in (Sine, Tone Generator, Silence, SoundSeed Air,
+    etc.) as a child of a Sound or Voice object.
+
+    Parameters
+    ----------
+    parent_path : str
+        Path/GUID of the parent Sound or Voice object.
+    name : str
+        Name of the new Source child.
+    class_id : int
+        Plug-in classId (see WAAPI wobjects_index).
+    properties : dict | None
+        Optional initial property values; each key becomes an @<Key>
+        accessor on the new Source.
+    language : str | None
+        Required for Voice parents (e.g. 'English(US)', 'Japanese'). When set,
+        the child uses `type: "Source"` per WAAPI Voice schema. Omit for Sound
+        parents: the child then uses `type: "SourcePlugin"` per WAAPI Sound
+        schema. The wrapper picks the correct type based on whether `language`
+        is supplied.
+    on_name_conflict : str
+        'fail' | 'rename' | 'replace' | 'merge'. Default 'rename'.
+
+    Returns
+    -------
+    dict
+        The created Source, unwrapped from the WAAPI response. Shape:
+        `{"id": "<guid>", "name": "<resolved name>", "path": "<project path>",
+        "type": "Source" | "SourcePlugin"}` (fields requested via
+        `options.return`). The raw WAAPI response nests the new Source at
+        `response["objects"][0]["children"][0]`; this wrapper returns the
+        child directly so callers can chain off `$last.id` / `$last.path`
+        in the plan executor.
+    """
+    if not isinstance(parent_path, str) or not parent_path.strip():
+        raise WwiseValidationError("parent_path must be a non-empty string")
+    if not isinstance(name, str) or not name.strip():
+        raise WwiseValidationError("name must be a non-empty string")
+    if not isinstance(class_id, int) or isinstance(class_id, bool):
+        raise WwiseValidationError("class_id must be an int")
+    if class_id < 0 or class_id > 0xFFFFFFFF:
+        raise WwiseValidationError(
+            f"class_id must fit in WAAPI unsigned 32-bit range [0, 0xFFFFFFFF], got {class_id}"
+        )
+    if language is not None and (not isinstance(language, str) or not language.strip()):
+        raise WwiseValidationError("language must be a non-empty string when provided")
+    if properties is not None and not isinstance(properties, dict):
+        raise WwiseValidationError("properties must be a dict if provided")
+    if on_name_conflict not in _OBJECT_SET_NAME_CONFLICT_MODES:
+        raise WwiseValidationError(
+            f"on_name_conflict must be one of {sorted(_OBJECT_SET_NAME_CONFLICT_MODES)}, "
+            f"got {on_name_conflict!r}"
+        )
+
+    # WAAPI Sound parents take type=SourcePlugin (schema lines 1399-1431, 1676-1697).
+    # Voice parents take type=Source with a required language field (schema lines 922-948).
+    child_type = "Source" if language is not None else "SourcePlugin"
+
+    child: dict = {"type": child_type, "name": name, "classId": class_id}
+    if language is not None:
+        child["language"] = language
+    for prop_name, prop_value in (properties or {}).items():
+        child[f"@{prop_name}"] = prop_value
+
+    args = {
+        "objects": [{"object": parent_path, "children": [child]}],
+        "onNameConflict": on_name_conflict,
+    }
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.object.set",
+            args,
+            options={"return": ["id", "name", "path", "type"]},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to create Source plug-in: {e}",
+            operation="ak.wwise.core.object.set",
+            details={
+                "error_type": type(e).__name__,
+                "parent_path": parent_path,
+                "name": name,
+                "class_id": class_id,
+                "language": language,
+            },
+        )
+
+    if response is None:
+        raise WwiseApiError(
+            "WAAPI returned None when creating Source plug-in",
+            operation="ak.wwise.core.object.set",
+            details={"parent_path": parent_path, "name": name},
+        )
+
+    # WAAPI mirrors the request shape: objects[0] is the parent Sound/Voice we
+    # called object.set on, and the created Source sits at
+    # objects[0].children[0]. The project's $last.<attr> plan resolver only
+    # walks one dict level, so chainable callers need flat fields. Unwrap the
+    # child so $last.id / $last.path resolve to the new Source.
+    try:
+        created = response["objects"][0]["children"][0]
+    except (KeyError, IndexError, TypeError) as e:
+        raise WwiseApiError(
+            f"Source plug-in was created but the WAAPI response shape was "
+            f"unexpected (could not locate objects[0].children[0]): {e}",
+            operation="ak.wwise.core.object.set",
+            details={
+                "error_type": type(e).__name__,
+                "parent_path": parent_path,
+                "name": name,
+                "raw_response": response,
+            },
+        )
+
+    return created
+
+
 def set_randomizer(
     object_path: str, 
     property_name: str, 

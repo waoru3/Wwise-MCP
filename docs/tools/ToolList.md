@@ -484,6 +484,31 @@ Bind a ControlInput (Game Parameter, Modulator, or MIDI) to a target property on
 
 ---
 
+### `create_source_plugin`
+
+**Description**
+Create a Source plug-in (Sine, Tone Generator, Silence, SoundSeed Air, etc.) as a child of a Sound or Voice object via `ak.wwise.core.object.set`. Unblocks Sine/Tone-based diagnostic and smoke-test automation that previously required manual GUI source swaps. Pre-PR `create_objects` `child_types` excluded Source plug-ins.
+
+**Arguments**
+
+- `parent_path: str` — Path or GUID of the parent Sound or Voice object.
+- `name: str` — Name of the new Source child.
+- `class_id: int` — Plug-in classId (WAAPI unsigned 32-bit range `[0, 0xFFFFFFFF]`, see WAAPI `wobjects_index`).
+- `properties: dict | None` — Optional initial property values; each key becomes an `@<Key>` accessor on the new Source.
+- `language: str | None` — Required for Voice parents (e.g. `'English(US)'`, `'Japanese'`). When supplied, the child is created with `type='Source'` per the WAAPI Voice schema. Omit for Sound parents: the child then uses `type='SourcePlugin'` per the WAAPI Sound schema.
+- `on_name_conflict: str = 'rename'` — One of `'fail' | 'rename' | 'replace' | 'merge'`.
+
+**Returns**
+
+The created Source, unwrapped from the WAAPI response: `{"id": "<guid>", "name": "<resolved name>", "path": "<project path>", "type": "Source" | "SourcePlugin"}` (fields requested via `options.return`). The raw WAAPI response nests the new Source at `response["objects"][0]["children"][0]`; this wrapper unwraps it so the plan executor's `$last.id` / `$last.path` resolve directly to the new Source.
+
+**Example prompts**
+
+- “Create a Sine source named `DiagTone_1k` under `\Actor-Mixer Hierarchy\Diagnostics\SineSound` with the Sine plug-in `class_id`.”
+- “Create a Tone Generator source named `Smoke_Tone` under the Sound `\Actor-Mixer Hierarchy\Smoke\TestSound`.”
+
+---
+
 ### `retrieve_selected_objs`
 
 **Description**  

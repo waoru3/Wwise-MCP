@@ -748,6 +748,30 @@ def set_rtpc_curve(
         raise
 
 
+def create_source_plugin(
+    parent_path: str,
+    name: str,
+    class_id: int,
+    *,
+    properties: dict | None = None,
+    language: str | None = None,
+    on_name_conflict: str = "rename",
+) -> dict:
+
+    try:
+        return WwisePythonLibrary.create_source_plugin(
+            parent_path,
+            name,
+            class_id,
+            properties=properties,
+            language=language,
+            on_name_conflict=on_name_conflict,
+        )
+    except Exception:
+        logger.exception("Failed to create Source plug-in.")
+        raise
+
+
 def set_object_randomizer(
     object_path: str,
     property_name: str,
@@ -1099,6 +1123,11 @@ COMMANDS: dict[str, Command] = {
         doc="Bind a ControlInput (Game Parameter / Modulator / MIDI) to a target property on an object via the @RTPC list with a breakpoint array. Target property may be an Effect plug-in property that older endpoints silently reject. Distinct from set_attenuation_curve. "
             "Args: object_path : str, property_name : str (without leading '@'), control_input_ref : str, points : list[dict], platform : str | None = None. "
             "Each point is {'x': number, 'y': number, 'shape': str}. Shape: Constant|Linear|Log1|Log2|Log3|InvertedSCurve|SCurve|Exp1|Exp2|Exp3. Returns dict."
+    ),
+    "create_source_plugin" : Command(
+        func=create_source_plugin,
+        doc="Create a Source plug-in (Sine, Tone Generator, Silence, SoundSeed Air, etc.) as a child of a Sound or Voice object via ak.wwise.core.object.set. Unblocks Sine/Tone-based diagnostic / smoke-test automation. Returns the created Source unwrapped (id/name/path/type via options.return) so $last.id and $last.path resolve to the new Source. "
+            "Args: parent_path : str, name : str, class_id : int (WAAPI uint32), properties : dict | None = None, language : str | None = None (required for Voice parents; omit for Sound parents), on_name_conflict : str = 'rename' ('fail'|'rename'|'replace'|'merge'). Returns dict."
     ),
     "set_object_randomizer" : Command(
         func=set_object_randomizer,
