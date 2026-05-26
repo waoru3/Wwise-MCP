@@ -957,10 +957,13 @@ COMMANDS: dict[str, Command] = {
             "Args: None. Returns None."
     ), 
     "include_in_soundbank" : Command(
-        func=include_in_soundbank, 
+        func=include_in_soundbank,
         doc="Includes the specified objects (i.e events, work units or folders) in the specifed soundbank by path"
-            "Args: include_paths : list[str], soundbank_paths : list[str]. Returns list[dict]"
-    ), 
+            "Args: include_paths : list[str], soundbank_path : str, "
+            "filter : list[str] | None = None (allowed values: 'events', 'structures', 'media'; "
+            "max 3 entries, must be unique; default None => ['events', 'structures'] which maps to Filter=3 in .wwu). "
+            "Returns list[dict]"
+    ),
     "generate_soundbanks" : Command(
         func=generate_soundbanks, 
         doc="Generates the soundbanks given a list of soundbanks names, a list of platforms and a list of languages."

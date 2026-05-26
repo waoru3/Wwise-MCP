@@ -250,6 +250,16 @@ def include_in_soundbank(
             raise WwiseValidationError(
                 f"filter values not in {{events, structures, media}}: {bad}"
             )
+        if len(filter) > 3:
+            raise WwiseValidationError(
+                f"filter accepts at most 3 entries (WAAPI maxItems:3), got {len(filter)}"
+            )
+        seen: set[str] = set()
+        duplicates = [f for f in filter if f in seen or seen.add(f)]
+        if duplicates:
+            raise WwiseValidationError(
+                f"filter values must be unique, duplicates: {sorted(set(duplicates))}"
+            )
         effective_filter = list(filter)
 
     result: list[dict] = []
