@@ -1559,31 +1559,53 @@ def add_effect_to_object(
         Raw WAAPI response from ak.wwise.core.object.set; shape
         `{"objects": [...]}` per the WAAPI object.set schema.
     """
-    if not object_path:
-        raise ValueError("object_path must be a non-empty string")
-    if not effect_ref:
-        raise ValueError("effect_ref must be a non-empty string")
+    if not isinstance(object_path, str) or not object_path.strip():
+        raise WwiseValidationError("object_path must be a non-empty string")
+    if not isinstance(effect_ref, str) or not effect_ref.strip():
+        raise WwiseValidationError("effect_ref must be a non-empty string")
     if list_mode not in _OBJECT_SET_LIST_MODES:
-        raise ValueError(
+        raise WwiseValidationError(
             f"list_mode must be one of {sorted(_OBJECT_SET_LIST_MODES)}, "
             f"got {list_mode!r}"
         )
 
-    return waapi_call(
-        "ak.wwise.core.object.set",
-        {
-            "objects": [
-                {
-                    "object": object_path,
-                    "@Effects": [
-                        {"type": "EffectSlot", "name": "", "@Effect": effect_ref}
-                    ],
-                }
-            ],
-            "onNameConflict": "merge",
-            "listMode": list_mode,
-        },
-    )
+    args = {
+        "objects": [
+            {
+                "object": object_path,
+                "@Effects": [
+                    {"type": "EffectSlot", "name": "", "@Effect": effect_ref}
+                ],
+            }
+        ],
+        "onNameConflict": "merge",
+        "listMode": list_mode,
+    }
+
+    try:
+        response = waapi_call("ak.wwise.core.object.set", args)
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to add effect to object: {e}",
+            operation="ak.wwise.core.object.set",
+            details={
+                "error_type": type(e).__name__,
+                "object_path": object_path,
+                "effect_ref": effect_ref,
+                "list_mode": list_mode,
+            },
+        )
+
+    if response is None:
+        raise WwiseApiError(
+            "WAAPI returned None when adding effect to object",
+            operation="ak.wwise.core.object.set",
+            details={"object_path": object_path, "effect_ref": effect_ref},
+        )
+
+    return response
 
 def set_randomizer(
     object_path: str, 
