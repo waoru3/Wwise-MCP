@@ -1644,10 +1644,13 @@ def create_effect_share_set(
     Returns
     -------
     dict
-        Raw WAAPI response from ak.wwise.core.object.set. Shape is
-        `{"objects": [{"id": "<guid>", "name": "<resolved name>", ...}]}`
-        per the WAAPI object.set schema; consumers needing the new
-        ShareSet's GUID/path should extract `response["objects"][0]`.
+        The created ShareSet, unwrapped from the WAAPI response. Shape:
+        `{"id": "<guid>", "name": "<resolved name>", "path": "<project path>",
+        "type": "Effect"}` (fields requested via `options.return`). The raw
+        WAAPI response from `object.set` nests the new ShareSet at
+        `response["objects"][0]["children"][0]`; this wrapper returns the
+        child directly so callers can chain off `$last.id` / `$last.path`
+        in the plan executor.
     """
     if not isinstance(parent_path, str) or not parent_path.strip():
         raise WwiseValidationError("parent_path must be a non-empty string")
@@ -1703,7 +1706,27 @@ def create_effect_share_set(
             details={"parent_path": parent_path, "name": name},
         )
 
-    return response
+    # WAAPI mirrors the request shape: objects[0] is the parent we called
+    # object.set on, and the created ShareSet sits at objects[0].children[0].
+    # The project's $last.<attr> plan resolver only walks one dict level, so
+    # callers that chain off the response need flat fields. Unwrap the child
+    # explicitly so $last.id / $last.path resolve to the new ShareSet.
+    try:
+        created = response["objects"][0]["children"][0]
+    except (KeyError, IndexError, TypeError) as e:
+        raise WwiseApiError(
+            f"Effect ShareSet was created but the WAAPI response shape was "
+            f"unexpected (could not locate objects[0].children[0]): {e}",
+            operation="ak.wwise.core.object.set",
+            details={
+                "error_type": type(e).__name__,
+                "parent_path": parent_path,
+                "name": name,
+                "raw_response": response,
+            },
+        )
+
+    return created
 
 
 
