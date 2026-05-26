@@ -421,6 +421,30 @@ Insert an Effect or Effect ShareSet reference into the `@Effects` list of a Bus,
 
 ---
 
+### `create_effect_share_set`
+
+**Description**  
+Creates a new Effect ShareSet (Custom Effect) under a parent Work Unit or folder via `ak.wwise.core.object.set`. Plug-in `classId` values are defined by the Wwise plug-in (see WAAPI `wobjects_index`); the caller supplies the value. The new ShareSet can be chained into `add_effect_to_object` to attach it to a Bus or Actor-Mixer.
+
+**Arguments**
+
+- `parent_path: str` — Project path of the parent Work Unit or folder (typically under `\Effects\Default Work Unit`).
+- `name: str` — Name of the new ShareSet.
+- `class_id: int` — Plug-in classId (WAAPI unsigned 32-bit range `[0, 0xFFFFFFFF]`).
+- `properties: dict | None` — Optional initial property values; each key becomes an `@<Key>` accessor on the new Effect.
+- `on_name_conflict: str = 'rename'` — One of `'fail' | 'rename' | 'replace' | 'merge'`.
+
+**Returns**
+
+Raw WAAPI response with `id`, `name`, `path`, `type` of the created ShareSet (requested via `options.return`); consumers needing the new ShareSet's GUID/path should extract `response["objects"][0]`.
+
+**Example prompts**
+
+- “Create a Steam Audio Spatializer Effect ShareSet named `SteamAudio_Spatializer` under `\Effects\Default Work Unit\Spatializers` with `class_id=<plug-in classId>`.”
+- “Create a Wwise Reverb ShareSet named `RoomReverb` under `\Effects\Default Work Unit\Reverbs`.”
+
+---
+
 ### `retrieve_selected_objs`
 
 **Description**  
