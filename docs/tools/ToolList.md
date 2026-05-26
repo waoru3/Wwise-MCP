@@ -464,6 +464,26 @@ Set an Effect plug-in property via `ak.wwise.core.object.set` using the `@<Prope
 
 ---
 
+### `set_rtpc_curve`
+
+**Description**
+Bind a ControlInput (Game Parameter, Modulator, or MIDI) to a target property on an object via the `@RTPC` list, defining the curve with the given breakpoint array. The target property can be any settable property including Effect plug-in properties (Steam Audio Spatializer `Reflections_MixLevel` etc.) that the older `setProperty` endpoint silently rejects. Distinct from `set_attenuation_curve`, which targets Attenuation-only curve types.
+
+**Arguments**
+
+- `object_path: str` — Project path or GUID of the object whose RTPC binding is being set.
+- `property_name: str` — WAAPI property name *without* the leading `@` (e.g. `'Reflections_MixLevel'`).
+- `control_input_ref: str` — Path or GUID of an existing Game Parameter / Modulator / MIDI source.
+- `points: list[dict]` — Non-empty list of breakpoint dicts. Each point: `{"x": number, "y": number, "shape": str}`. `x` and `y` must be finite numbers (`bool`, `NaN`, `Infinity` rejected). `shape` is one of `'Constant'`, `'Linear'`, `'Log3'`, `'Log2'`, `'Log1'`, `'InvertedSCurve'`, `'SCurve'`, `'Exp1'`, `'Exp2'`, `'Exp3'`.
+- `platform: str | None` — Optional platform unique name or GUID. When omitted, the binding applies to all linked platforms.
+
+**Example prompts**
+
+- “Bind the `\Game Parameters\Reflections_Mute` RTPC to the `Reflections_MixLevel` property of the `SteamAudio_Spatializer` ShareSet with a two-point linear curve `(0, 0)` → `(1, 1)`.”
+- “Set an exponential RTPC curve for the `\Game Parameters\Distance` GP to drive the `OutputBusVolume` of `\Actor-Mixer Hierarchy\SFX\Ambience`.”
+
+---
+
 ### `retrieve_selected_objs`
 
 **Description**  

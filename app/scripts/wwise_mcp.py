@@ -726,6 +726,28 @@ def set_plugin_property(
         raise
 
 
+def set_rtpc_curve(
+    object_path: str,
+    property_name: str,
+    control_input_ref: str,
+    points: list[dict],
+    *,
+    platform: str | None = None,
+) -> dict:
+
+    try:
+        return WwisePythonLibrary.set_rtpc_curve(
+            object_path,
+            property_name,
+            control_input_ref,
+            points,
+            platform=platform,
+        )
+    except Exception:
+        logger.exception("Failed to set RTPC curve via object.set.")
+        raise
+
+
 def set_object_randomizer(
     object_path: str,
     property_name: str,
@@ -1071,6 +1093,12 @@ COMMANDS: dict[str, Command] = {
         func=set_plugin_property,
         doc="Set an Effect plug-in property via ak.wwise.core.object.set using the @<PropertyName> accessor. Use for plug-in-defined properties that the older setProperty silently rejects (Steam Audio Spatializer Reflections / Pathing / AirAbsorption / Occlusion / Transmission, Wwise Reverb plug-in params, etc.). "
             "Args: object_path : str, property_name : str (without leading '@'), value : int|bool|float|str, platform : str | None = None. Returns dict."
+    ),
+    "set_rtpc_curve" : Command(
+        func=set_rtpc_curve,
+        doc="Bind a ControlInput (Game Parameter / Modulator / MIDI) to a target property on an object via the @RTPC list with a breakpoint array. Target property may be an Effect plug-in property that older endpoints silently reject. Distinct from set_attenuation_curve. "
+            "Args: object_path : str, property_name : str (without leading '@'), control_input_ref : str, points : list[dict], platform : str | None = None. "
+            "Each point is {'x': number, 'y': number, 'shape': str}. Shape: Constant|Linear|Log1|Log2|Log3|InvertedSCurve|SCurve|Exp1|Exp2|Exp3. Returns dict."
     ),
     "set_object_randomizer" : Command(
         func=set_object_randomizer,
