@@ -445,6 +445,25 @@ The created ShareSet, unwrapped from the WAAPI response: `{"id": "<guid>", "name
 
 ---
 
+### `set_plugin_property`
+
+**Description**
+Set an Effect plug-in property via `ak.wwise.core.object.set` using the `@<PropertyName>` accessor. The older `setProperty` endpoint silently rejects plug-in-defined properties (Steam Audio Spatializer `Reflections` / `Pathing` / `AirAbsorption` / `Occlusion` / `Transmission`, Wwise Reverb plug-in params, etc.); this tool routes through `object.set` so those writes actually persist. Built-in object properties continue to be set via `set_object_property`.
+
+**Arguments**
+
+- `object_path: str` — Project path or GUID of the object whose property is being set.
+- `property_name: str` — WAAPI property name *without* the leading `@` (e.g. `'Reflections'`). The wrapper adds the `@` prefix.
+- `value: int | bool | float | str` — New value. `None` is rejected.
+- `platform: str | None` — Optional platform unique name or GUID. When omitted, the change applies to all linked platforms.
+
+**Example prompts**
+
+- “Set the Steam Audio Spatializer `Reflections` toggle on the `\Effects\Default Work Unit\Spatializers\SteamAudio` ShareSet to `False`.”
+- “Set the `AirAbsorption` plug-in property of the `SteamAudio_Spatializer` ShareSet to `True`.”
+
+---
+
 ### `retrieve_selected_objs`
 
 **Description**  

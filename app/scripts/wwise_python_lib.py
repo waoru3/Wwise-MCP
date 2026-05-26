@@ -1729,6 +1729,64 @@ def create_effect_share_set(
     return created
 
 
+def set_plugin_property(
+    object_path: str,
+    property_name: str,
+    value: int | bool | float | str,
+    *,
+    platform: str | None = None,
+) -> dict:
+    """
+    Set an Effect plug-in property via ak.wwise.core.object.set using the
+    @<PropertyName> accessor. Use this for Effect plug-in properties (Steam
+    Audio Spatializer Reflections / Pathing / AirAbsorption etc.) that the
+    older setProperty endpoint silently rejects.
+
+    Parameters
+    ----------
+    object_path : str
+        Project path or GUID of the object whose property is being set.
+    property_name : str
+        WAAPI property name *without* the leading '@' (e.g. 'Reflections').
+        The function adds the '@' prefix.
+    value : int | bool | float | str
+        The new value. None is rejected (use the existing property removal
+        endpoints if you need to clear a reference).
+    platform : str | None
+        Optional platform unique name or GUID. When omitted, the change
+        applies to all linked platforms.
+    """
+    if not isinstance(object_path, str) or not object_path.strip():
+        raise WwiseValidationError("object_path must be a non-empty string")
+    if not isinstance(property_name, str) or not property_name.strip():
+        raise WwiseValidationError("property_name must be a non-empty string")
+    if value is None:
+        raise WwiseValidationError("value cannot be None")
+
+    obj: dict = {"object": object_path, f"@{property_name}": value}
+    if platform is not None:
+        obj["platform"] = platform
+
+    args = {"objects": [obj], "onNameConflict": "merge"}
+
+    try:
+        response = waapi_call("ak.wwise.core.object.set", args)
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to set plug-in property: {e}",
+            operation="ak.wwise.core.object.set",
+            details={
+                "error_type": type(e).__name__,
+                "object_path": object_path,
+                "property_name": property_name,
+                "platform": platform,
+            },
+        )
+
+    return response if response is not None else {}
+
 
 def set_randomizer(
     object_path: str, 
