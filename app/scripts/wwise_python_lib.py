@@ -1599,9 +1599,12 @@ def assign_child_to_blend_track(
 
     return waapi_call("ak.wwise.core.blendContainer.addAssignment", args)
 
+_OBJECT_SET_LIST_MODES = frozenset({"replaceAll", "append"})
+
 def assign_child_to_random_sequence_playlist(
     container_path: str,
-    child_paths: list[str]
+    child_paths: list[str],
+    list_mode: str = "replaceAll",
 ) -> dict:
 
     if not container_path:
@@ -1609,6 +1612,11 @@ def assign_child_to_random_sequence_playlist(
 
     if not child_paths:
         raise ValueError("child_paths must be a non-empty list of Wwise object paths or GUIDs.")
+
+    if list_mode not in _OBJECT_SET_LIST_MODES:
+        raise ValueError(
+            f"list_mode must be one of {sorted(_OBJECT_SET_LIST_MODES)}, got {list_mode!r}"
+        )
 
     args = {
         "objects": [
@@ -1625,8 +1633,7 @@ def assign_child_to_random_sequence_playlist(
             }
         ],
         "onNameConflict": "merge",
-        "listMode": "replaceAll" 
-        # TODO: Investigate ak.wwise.core.object.set list options for playlist management assignment behavior
+        "listMode": list_mode,
     }
 
     return waapi_call("ak.wwise.core.object.set", args)

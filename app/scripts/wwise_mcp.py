@@ -721,13 +721,15 @@ def assign_child_to_blend_track(
 
 def assign_child_to_random_sequence_playlist(
     container_path: str,
-    child_paths: list[str]
+    child_paths: list[str],
+    list_mode: str = "replaceAll",
 ) -> None:
 
     try:
         WwisePythonLibrary.assign_child_to_random_sequence_playlist(
             container_path,
-            child_paths
+            child_paths,
+            list_mode,
         )
     except Exception:
         logger.exception("Failed to assign children to random/sequence playlist.")
@@ -1027,9 +1029,12 @@ COMMANDS: dict[str, Command] = {
     "assign_child_to_random_sequence_playlist": Command(
         func=assign_child_to_random_sequence_playlist,
         doc="Assigns child objects to the playlist of a Random or Sequence Container."
-            "Args: container_path: str, child_paths: list[str]. "
+            "Args: container_path: str, child_paths: list[str], "
+            "list_mode: str = 'replaceAll' (accepted values: 'replaceAll' | 'append'). "
             "Children must already exist under the RandomSequenceContainer hierarchy. "
-            "Note: replaces exsiting playlist (listMode='replaceAll'). Returns None."
+            "list_mode='replaceAll' overwrites the existing playlist; "
+            "list_mode='append' adds child_paths to the end of the current playlist. "
+            "Returns None."
     ),
     "retrieve_selected_objs" : Command(
         func=get_selected_objects, 
