@@ -924,13 +924,16 @@ COMMANDS: dict[str, Command] = {
             "Args: None, Returns list[dict]"
     ),
     "post_event" : Command(
-        func=post_event, 
+        func=post_event,
         doc="Posts the event by its name on the game object specified by its name after a delay in milliseconds"
             "If no game object is specified, the event will be posted on the 'Global' game object which should be used for 2D sounds like Ambiences."
             "If the specified game object does not exist, it will be created automatically at time of call."
             "If user does not specify delay_ms, assume post immediately so set delay_ms = 0."
             "Types of events : Play, Stop, Pause, Break, Seek"
-            "Args: event_name: str, game_obj_name : str, delay_ms : int. Returns None"
+            "Args: event_name: str, game_obj_name: str, delay_ms: int, "
+            "wait: bool = False (False = fire-and-forget; True = block on the WAAPI reply queue, "
+            "useful for serializing a batch of posts. Reply timeout is auto-extended when delay_ms > 0). "
+            "Returns None"
     ),
     "set_rtpc" : Command(
         func=set_rtpc, 
