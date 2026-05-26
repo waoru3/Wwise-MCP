@@ -423,8 +423,8 @@ Insert an Effect or Effect ShareSet reference into the `@Effects` list of a Bus,
 
 ### `create_effect_share_set`
 
-**Description**  
-Creates a new Effect ShareSet (Custom Effect) under a parent Work Unit or folder via `ak.wwise.core.object.set`. Plug-in `classId` values are defined by the Wwise plug-in (see WAAPI `wobjects_index`); the caller supplies the value. The new ShareSet can be chained into `add_effect_to_object` to attach it to a Bus or Actor-Mixer.
+**Description**
+Creates a new Effect ShareSet (Custom Effect) under a parent Work Unit or folder via `ak.wwise.core.object.set`. Plug-in `classId` values are defined by the Wwise plug-in (see WAAPI `wobjects_index`); the caller supplies the value. Pairs with `add_effect_to_object` (introduced in a separate PR) for attaching the new ShareSet to a Bus or Actor-Mixer; until that command lands in the same branch, attachment must be performed by other means.
 
 **Arguments**
 
@@ -436,7 +436,7 @@ Creates a new Effect ShareSet (Custom Effect) under a parent Work Unit or folder
 
 **Returns**
 
-Raw WAAPI response with `id`, `name`, `path`, `type` of the created ShareSet (requested via `options.return`); consumers needing the new ShareSet's GUID/path should extract `response["objects"][0]`.
+The created ShareSet, unwrapped from the WAAPI response: `{"id": "<guid>", "name": "<resolved name>", "path": "<project path>", "type": "Effect"}` (fields requested via `options.return`). The raw WAAPI response nests the new ShareSet at `response["objects"][0]["children"][0]`; this wrapper unwraps it so the plan executor's `$last.id` / `$last.path` resolve directly to the new ShareSet.
 
 **Example prompts**
 
