@@ -10,6 +10,61 @@ import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
+import re
+import subprocess
+import platform
+
+FILESYSTEM_OPS = {
+    "get_all_audio_files_at_path_on_file_explorer",
+    "import_audio_files",
+}
+
+def _extract_path_from_callstring(call: str) -> str | None:
+    match = re.search(r'["\']([^"\']+)["\']', call)
+    return match.group(1) if match else None
+
+def _confirm_path_access(paths_summary: str) -> bool:
+    if platform.system() == "Darwin":
+        # Escape quotes and newlines for AppleScript
+        msg = (
+            f"Wwise MCP — File System Access\n\n"
+            f"This plan includes file system operations:\n\n"
+            f"{paths_summary}\n\n"
+            f"Allow access?"
+        ).replace('"', '\\"').replace('\n', '\\n')
+        script = (
+            f'display dialog "{msg}" '
+            f'buttons {{"Deny", "Allow"}} '
+            f'default button "Allow" '
+            f'with title "Wwise MCP"'
+        )
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=120
+            )
+            return "Allow" in result.stdout
+        except subprocess.TimeoutExpired:
+            return False
+        except Exception:
+            logger.exception("Confirmation dialog failed.")
+            return False
+    else:
+        # Windows / Linux fallback — tkinter
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        confirmed = messagebox.askyesno(
+            title="Wwise MCP — File System Access",
+            message=f"This plan includes file system operations:\n\n{paths_summary}\n\nAllow access?"
+        )
+        root.quit()
+        root.destroy()
+        return confirmed
+
+
 logger = logging.getLogger(__name__)
 
 def get_log_dir() -> Path:
@@ -1239,12 +1294,33 @@ async def execute_plan(plan: list[str]) -> dict[str, any]:
     Execute a JSON list of call-strings produced by Claude.
     Returns simple success/failure info.
     """
-
     # Strip any undo group calls the AI may have included — execute_plan owns these
     plan = [
         step for step in plan
         if not step.startswith("begin_undo_group") and not step.startswith("end_undo_group")
     ]
+
+    # Check for filesystem ops and confirm with user before execution
+    fs_steps = [
+        step for step in plan
+        if any(op in step for op in FILESYSTEM_OPS)
+    ]
+    if fs_steps:
+        paths_summary = "\n".join(
+            f"  • {_extract_path_from_callstring(s) or s}"
+            for s in fs_steps
+        )
+        
+        # Run dialog in worker thread to avoid blocking the asyncio event loop
+        # during user confirmation (which may take several seconds)
+        confirmed = await anyio.to_thread.run_sync(_confirm_path_access, paths_summary)
+
+        if not confirmed:
+            return {
+                "status": "error",
+                "error": "User denied file system access.",
+                "failed_step": fs_steps[0]
+            }
 
     # Inject undo group wrapping around authoring steps
     if plan and "connect_to_wwise" in plan[0]:
