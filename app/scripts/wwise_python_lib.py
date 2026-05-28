@@ -3116,6 +3116,8 @@ _VOICE_RETURN_FIELDS = frozenset({
     "isStarted", "isVirtual", "isForcedVirtual",
 })
 
+_MAX_BUS_CHAIN_DEPTH = 64
+
 
 def profiler_get_voices(
     time: int | str = "capture",
@@ -3219,7 +3221,7 @@ def profiler_get_voice_contributions(
     busses_pipeline_id : list[int] | None
         Optional bus pipeline-ID chain identifying a wet path. Pass `[]`
         explicitly to request the dry path (schema:
-        `getVoiceContributions.json` describes empty array as the dry-path
+        `ak.wwise.core.profiler.getVoiceContributions.json` describes empty array as the dry-path
         default). Omitting (`None`) leaves the field out of the args dict;
         WAAPI's behavior with an absent `bussesPipelineID` is not
         documented to equal the empty-array case, so callers that mean
@@ -3249,6 +3251,11 @@ def profiler_get_voice_contributions(
     if busses_pipeline_id is not None:
         if not isinstance(busses_pipeline_id, list):
             raise WwiseValidationError("busses_pipeline_id must be a list when provided")
+        if len(busses_pipeline_id) > _MAX_BUS_CHAIN_DEPTH:
+            raise WwiseValidationError(
+                f"busses_pipeline_id length {len(busses_pipeline_id)} exceeds defensive cap "
+                f"{_MAX_BUS_CHAIN_DEPTH} (bus chains are not expected to be longer than this in practice)"
+            )
         for i, b in enumerate(busses_pipeline_id):
             if isinstance(b, bool) or not isinstance(b, int):
                 raise WwiseValidationError(
