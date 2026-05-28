@@ -2887,3 +2887,103 @@ def toggle_layout(request_layout : str)->dict:
         "They are case sensitive.")
     
     return waapi_call("ak.wwise.ui.layout.switchLayout", {"name": request_layout})
+
+
+# ==============================================================================
+#                          Profiler capture & inspection
+# ==============================================================================
+#
+# Wraps ak.wwise.core.profiler.* endpoints. ALL 10 endpoints (capture control
+# AND readers) are restricted to userInterface / commandLine contexts per the
+# local WAAPI JSON schemas under
+# C:/Audiokinetic/Wwise_2024.1.13.9056/Authoring/Data/Schemas/WAAPI/. They
+# require Wwise Authoring to be running (a console / headless WwiseConsole.exe
+# context with --command-line works; pure WAAPI-only without an Authoring
+# instance does not). "Visible UI" in the docstrings below is shorthand for
+# "Authoring process with a userInterface or commandLine context"; it does
+# not strictly require a graphical window.
+#
+# Reader endpoints (getVoices, getVoiceContributions, getAudioObjects, etc.)
+# use a 5.0s waapi_call timeout because the live capture pipeline can stall
+# the WAAPI reply briefly when the session is hot.
+#
+# Session side effect: profiler_enable_data overrides the user's Profiler
+# data-type settings for the duration of the Authoring session. Restore the
+# pre-probe values at the end of Task 12 cleanup (call profiler_enable_data
+# again with the prior settings, or just disable voiceInspector / audioObjects
+# explicitly after capture).
+
+_PROFILER_CURSORS = frozenset({"user", "capture"})
+
+
+def _validate_profiler_time(time: int | str) -> None:
+    """Reject anything that is not a non-negative int or 'user' / 'capture'."""
+    if isinstance(time, bool):
+        raise WwiseValidationError(
+            f"time must be int (ms) or one of {sorted(_PROFILER_CURSORS)}, got bool"
+        )
+    if isinstance(time, str):
+        if time not in _PROFILER_CURSORS:
+            raise WwiseValidationError(
+                f"time string must be one of {sorted(_PROFILER_CURSORS)}, got {time!r}"
+            )
+        return
+    if not isinstance(time, int):
+        raise WwiseValidationError(
+            f"time must be int (ms) or a profiler cursor string, got {type(time).__name__}"
+        )
+    if time < 0:
+        raise WwiseValidationError(f"time must be >= 0 ms, got {time}")
+
+
+def profiler_start_capture() -> dict:
+    """
+    Start the Wwise Profiler capture and return the capture cursor time in ms.
+
+    Preconditions
+    -------------
+    Wwise Authoring must be running with a UI (this endpoint is
+    userInterface/commandLine restricted per the local WAAPI schema).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": <int ms>}.
+    """
+    try:
+        response = waapi_call("ak.wwise.core.profiler.startCapture", {})
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to start profiler capture: {e}",
+            operation="ak.wwise.core.profiler.startCapture",
+            details={"error_type": type(e).__name__},
+        )
+    return response if response is not None else {}
+
+
+def profiler_stop_capture() -> dict:
+    """
+    Stop the Wwise Profiler capture and return the cursor time at the end of
+    the capture in milliseconds.
+
+    Behavior when no capture is active is not specified by the WAAPI schema;
+    treat it as undefined and verify in smoke (Task 1 step 4).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": <int ms>}.
+    """
+    try:
+        response = waapi_call("ak.wwise.core.profiler.stopCapture", {})
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to stop profiler capture: {e}",
+            operation="ak.wwise.core.profiler.stopCapture",
+            details={"error_type": type(e).__name__},
+        )
+    return response if response is not None else {}

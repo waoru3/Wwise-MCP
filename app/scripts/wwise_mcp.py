@@ -881,11 +881,27 @@ def get_all_property_name_valid_values() -> str:
         raise
 
 def delete_object(object_ref: str) -> dict:
-    try: 
+    try:
         return WwisePythonLibrary.delete_object(object_ref)
     except Exception:
         logger.exception("Failed to delte object")
-        raise 
+        raise
+
+
+def profiler_start_capture() -> dict:
+    try:
+        return WwisePythonLibrary.profiler_start_capture()
+    except Exception:
+        logger.exception("Failed to start profiler capture.")
+        raise
+
+
+def profiler_stop_capture() -> dict:
+    try:
+        return WwisePythonLibrary.profiler_stop_capture()
+    except Exception:
+        logger.exception("Failed to stop profiler capture.")
+        raise
 
 #==============================================================================
 #                            Function Dictionary
@@ -1219,6 +1235,16 @@ COMMANDS: dict[str, Command] = {
             "Use after a failed plan to revert all operations performed "
             "since begin_undo_group was called. No args required."
 ),
+    "profiler_start_capture" : Command(
+        func=profiler_start_capture,
+        doc="Start the Wwise Profiler capture. Preconditions: Wwise Authoring UI must be open (endpoint is userInterface/commandLine restricted). Call toggle_layout('Profiler') first if Profiler UI visibility matters. "
+            "Args: None. Returns dict {'return': <int capture cursor ms>}."
+    ),
+    "profiler_stop_capture" : Command(
+        func=profiler_stop_capture,
+        doc="Stop the Wwise Profiler capture. Behavior with no active capture is unspecified by the WAAPI schema; verify in smoke. "
+            "Args: None. Returns dict {'return': <int capture cursor ms>}."
+    ),
 }
 
 def list_commands()-> list[str]: 
