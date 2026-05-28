@@ -1003,6 +1003,14 @@ def profiler_get_rtpcs(time: int | str = "capture", *, timeout: float = 5.0) -> 
         logger.exception("Failed to get profiler RTPCs.")
         raise
 
+
+def profiler_save_capture(file_path: str) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_save_capture(file_path)
+    except Exception:
+        logger.exception("Failed to save profiler capture.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1388,6 +1396,12 @@ COMMANDS: dict[str, Command] = {
         doc="Return active RTPCs at a profiler capture time. "
             "Args: time: int|str='capture', timeout: float=5.0. "
             "Returns dict {'return': [{'id': guid, 'name': str, 'gameObjectId': int (AK_INVALID_GAME_OBJECT for global), 'value': number}]}. Useful for verifying per-feature mute RTPCs like Reflections_MixLevel hold expected values."
+    ),
+    "profiler_save_capture" : Command(
+        func=profiler_save_capture,
+        doc="Save the current profiler capture to a .prof file via ak.wwise.core.profiler.saveCapture (NOT saveProfilerCapture). "
+            "Args: file_path: str (absolute path the Wwise Authoring process can write to, typically ending .prof). "
+            "Returns empty dict on success."
     ),
 }
 

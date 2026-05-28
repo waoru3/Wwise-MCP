@@ -3514,3 +3514,39 @@ def profiler_get_rtpcs(
             details={"error_type": type(e).__name__, "time": time, "timeout": timeout},
         )
     return response if response is not None else {"return": []}
+
+
+def profiler_save_capture(file_path: str) -> dict:
+    """
+    Save the current profiler capture to a .prof file.
+
+    The WAAPI endpoint is ak.wwise.core.profiler.saveCapture (NOT
+    saveProfilerCapture - the latter is a common mis-naming from older docs).
+
+    Parameters
+    ----------
+    file_path : str
+        Absolute path the Wwise Authoring process can write to. Typically
+        ends with .prof.
+
+    Returns
+    -------
+    dict
+        Empty dict on success.
+    """
+    if not isinstance(file_path, str) or not file_path.strip():
+        raise WwiseValidationError("file_path must be a non-empty string")
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.saveCapture",
+            {"file": file_path},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to save profiler capture: {e}",
+            operation="ak.wwise.core.profiler.saveCapture",
+            details={"error_type": type(e).__name__, "file_path": file_path},
+        )
+    return response if response is not None else {}
