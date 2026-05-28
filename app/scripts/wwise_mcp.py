@@ -957,6 +957,25 @@ def profiler_get_voice_contributions(
         logger.exception("Failed to get profiler voice contributions.")
         raise
 
+
+def profiler_get_audio_objects(
+    time: int | str = "capture",
+    *,
+    bus_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_get_audio_objects(
+            time,
+            bus_pipeline_id=bus_pipeline_id,
+            return_fields=return_fields,
+            timeout=timeout,
+        )
+    except Exception:
+        logger.exception("Failed to get profiler audio objects.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1323,6 +1342,13 @@ COMMANDS: dict[str, Command] = {
             "busses_pipeline_id: list[int]|None=None (bus pipeline-ID chain for a wet path; pass [] explicitly for the dry path; "
             "omitting leaves the field absent, which WAAPI does not document as equivalent to []), timeout: float=5.0. "
             "Returns dict {'return': {'volume', 'LPF', 'HPF', 'objects': [...]}}."
+    ),
+    "profiler_get_audio_objects" : Command(
+        func=profiler_get_audio_objects,
+        doc="Return Audio Objects in the post-mix pipeline at a profiler capture time. "
+            "PREREQUISITE: profiler_enable_data(['audioObjects', ...]) for full data. "
+            "Args: time: int|str='capture', bus_pipeline_id: int|None=None (filter to one bus), return_fields: list[str]|None=None (subset of audioObjectID/busPipelineID/instigatorPipelineID/effectClassID/effectIndex/effectPluginName/rmsMeter/peakMeter), timeout: float=5.0. "
+            "Returns dict {'return': [{audio object fields}, ...]}. For Reflect/Pathing detection request effectPluginName, instigatorPipelineID, rmsMeter, peakMeter."
     ),
 }
 
