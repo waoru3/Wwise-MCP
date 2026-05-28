@@ -3189,6 +3189,7 @@ def profiler_get_voices(
                 "time": time,
                 "voice_pipeline_id": voice_pipeline_id,
                 "return_fields": return_fields,
+                "timeout": timeout,
             },
         )
     return response if response is not None else {"return": []}
