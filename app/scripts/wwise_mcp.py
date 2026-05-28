@@ -938,6 +938,25 @@ def profiler_get_voices(
         logger.exception("Failed to get profiler voices.")
         raise
 
+
+def profiler_get_voice_contributions(
+    voice_pipeline_id: int,
+    *,
+    time: int | str = "capture",
+    busses_pipeline_id: list[int] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_get_voice_contributions(
+            voice_pipeline_id,
+            time=time,
+            busses_pipeline_id=busses_pipeline_id,
+            timeout=timeout,
+        )
+    except Exception:
+        logger.exception("Failed to get profiler voice contributions.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1295,6 +1314,15 @@ COMMANDS: dict[str, Command] = {
         doc="Return voices active at a profiler capture time. "
             "Args: time: int|str='capture' (ms integer or 'user'|'capture'), voice_pipeline_id: int|None=None (filter to one voice by uint32 pipeline ID), return_fields: list[str]|None=None (subset of pipelineID/playingID/soundID/gameObjectID/gameObjectName/objectGUID/objectName/playTargetID/playTargetGUID/playTargetName/baseVolume/gameAuxSendVolume/envelope/normalizationGain/lowPassFilter/highPassFilter/priority/isStarted/isVirtual/isForcedVirtual), timeout: float=5.0. "
             "Returns dict {'return': [{voice fields}, ...]}. For chain verification request pipelineID, gameObjectID, gameObjectName, baseVolume, envelope, isVirtual, isStarted."
+    ),
+    "profiler_get_voice_contributions" : Command(
+        func=profiler_get_voice_contributions,
+        doc="Return the contribution tree (volume / LPF / HPF and recursive objects) for one voice path. "
+            "REQUIRES profiler_enable_data to have included 'voiceInspector' for the current session, else the tree is empty. "
+            "Args: voice_pipeline_id: int (uint32 from profiler_get_voices), time: int|str='capture' (ms integer or 'user'|'capture'), "
+            "busses_pipeline_id: list[int]|None=None (bus pipeline-ID chain for a wet path; pass [] explicitly for the dry path; "
+            "omitting leaves the field absent, which WAAPI does not document as equivalent to []), timeout: float=5.0. "
+            "Returns dict {'return': {'volume', 'LPF', 'HPF', 'objects': [...]}}."
     ),
 }
 

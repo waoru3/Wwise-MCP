@@ -3193,3 +3193,94 @@ def profiler_get_voices(
             },
         )
     return response if response is not None else {"return": []}
+
+
+def profiler_get_voice_contributions(
+    voice_pipeline_id: int,
+    *,
+    time: int | str = "capture",
+    busses_pipeline_id: list[int] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve the contribution tree (volume / LPF / HPF) for one voice path.
+
+    Preconditions
+    -------------
+    profiler_enable_data must have included 'voiceInspector' for this
+    session. Without it, the returned tree is empty.
+
+    Parameters
+    ----------
+    voice_pipeline_id : int
+        Pipeline ID (uint32) of the voice. Obtain from profiler_get_voices.
+    time : int | str
+        Integer ms or one of 'user' / 'capture'. Defaults to 'capture'.
+    busses_pipeline_id : list[int] | None
+        Optional bus pipeline-ID chain identifying a wet path. Pass `[]`
+        explicitly to request the dry path (schema:
+        `getVoiceContributions.json` describes empty array as the dry-path
+        default). Omitting (`None`) leaves the field out of the args dict;
+        WAAPI's behavior with an absent `bussesPipelineID` is not
+        documented to equal the empty-array case, so callers that mean
+        "dry path" should pass `[]` rather than rely on omission.
+    timeout : float
+        WAAPI reply timeout. Default 5.0s.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response:
+        {"return": {"volume": <db>, "LPF": <n>, "HPF": <n>,
+                    "objects": [<voiceContributionsObject>, ...]}}.
+        Each voiceContributionsObject has: name, volume, LPF, HPF,
+        optional index (per-emitter ray ID), optional children (recursive),
+        optional parameters[{propertyType, reason, driver, driverValue, value}].
+    """
+    if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
+        raise WwiseValidationError("voice_pipeline_id must be an int")
+    if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
+        raise WwiseValidationError(
+            f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
+        )
+
+    _validate_profiler_time(time)
+
+    if busses_pipeline_id is not None:
+        if not isinstance(busses_pipeline_id, list):
+            raise WwiseValidationError("busses_pipeline_id must be a list when provided")
+        for i, b in enumerate(busses_pipeline_id):
+            if isinstance(b, bool) or not isinstance(b, int):
+                raise WwiseValidationError(
+                    f"busses_pipeline_id[{i}] must be int, got {type(b).__name__}"
+                )
+            if b < 0 or b > 0xFFFFFFFF:
+                raise WwiseValidationError(
+                    f"busses_pipeline_id[{i}] must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {b}"
+                )
+
+    args: dict = {"voicePipelineID": voice_pipeline_id, "time": time}
+    if busses_pipeline_id is not None:
+        args["bussesPipelineID"] = busses_pipeline_id
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getVoiceContributions",
+            args,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get voice contributions: {e}",
+            operation="ak.wwise.core.profiler.getVoiceContributions",
+            details={
+                "error_type": type(e).__name__,
+                "voice_pipeline_id": voice_pipeline_id,
+                "time": time,
+                "busses_pipeline_id": busses_pipeline_id,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {}
