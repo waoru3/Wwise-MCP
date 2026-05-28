@@ -903,6 +903,14 @@ def profiler_stop_capture() -> dict:
         logger.exception("Failed to stop profiler capture.")
         raise
 
+
+def profiler_get_cursor_time(cursor: str = "capture") -> dict:
+    try:
+        return WwisePythonLibrary.profiler_get_cursor_time(cursor)
+    except Exception:
+        logger.exception("Failed to get profiler cursor time.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1244,6 +1252,10 @@ COMMANDS: dict[str, Command] = {
         func=profiler_stop_capture,
         doc="Stop the Wwise Profiler capture. Behavior with no active capture is unspecified by the WAAPI schema; verify in smoke. "
             "Args: None. Returns dict {'return': <int capture cursor ms>}."
+    ),
+    "profiler_get_cursor_time" : Command(
+        func=profiler_get_cursor_time,
+        doc="Return profiler cursor time in ms. Args: cursor: str = 'capture' ('capture' for live capture cursor, 'user' for the user-manipulated cursor). Returns dict {'return': <int ms>}."
     ),
 }
 

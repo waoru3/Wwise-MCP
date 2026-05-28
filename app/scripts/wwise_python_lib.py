@@ -2987,3 +2987,38 @@ def profiler_stop_capture() -> dict:
             details={"error_type": type(e).__name__},
         )
     return response if response is not None else {}
+
+
+def profiler_get_cursor_time(cursor: str = "capture") -> dict:
+    """
+    Return the current position of the specified profiler time cursor in ms.
+
+    Parameters
+    ----------
+    cursor : str
+        'user' (the User Time Cursor) or 'capture' (the Capture Time Cursor).
+        Defaults to 'capture' for the common "what's playing right now" case.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": <int ms>}.
+    """
+    if cursor not in _PROFILER_CURSORS:
+        raise WwiseValidationError(
+            f"cursor must be one of {sorted(_PROFILER_CURSORS)}, got {cursor!r}"
+        )
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getCursorTime",
+            {"cursor": cursor},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler cursor time: {e}",
+            operation="ak.wwise.core.profiler.getCursorTime",
+            details={"error_type": type(e).__name__, "cursor": cursor},
+        )
+    return response if response is not None else {}
