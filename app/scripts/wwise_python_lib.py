@@ -3385,3 +3385,89 @@ def profiler_get_audio_objects(
             },
         )
     return response if response is not None else {"return": []}
+
+
+_BUS_RETURN_FIELDS = frozenset({
+    "pipelineID", "mixBusID", "objectGUID", "objectName",
+    "gameObjectID", "gameObjectName", "deviceID",
+    "volume", "downstreamGain",
+    "voiceCount", "effectCount", "depth",
+})
+
+
+def profiler_get_busses(
+    time: int | str = "capture",
+    *,
+    bus_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve busses active at a specific profiler capture time.
+
+    Complementary signal to get_voices: inspect bus voiceCount /
+    effectCount / volume to cross-check that the expected bus routing is
+    active. Bus identity follows the project's bus hierarchy, not a
+    fixed "Reflections" bus - Steam Audio Spatializer routing keeps voices
+    on the same bus they would otherwise live on.
+
+    Parameters
+    ----------
+    time : int | str
+    bus_pipeline_id : int | None
+    return_fields : list[str] | None
+        Subset of _BUS_RETURN_FIELDS.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": [{...bus}, ...]}.
+    """
+    _validate_profiler_time(time)
+
+    if bus_pipeline_id is not None:
+        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
+            raise WwiseValidationError("bus_pipeline_id must be an int")
+        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
+            raise WwiseValidationError(
+                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
+            )
+
+    if return_fields is not None:
+        if not isinstance(return_fields, list) or not return_fields:
+            raise WwiseValidationError("return_fields must be a non-empty list when provided")
+        bad = [f for f in return_fields if not isinstance(f, str) or f not in _BUS_RETURN_FIELDS]
+        if bad:
+            raise WwiseValidationError(
+                f"return_fields contains unknown values {bad}; "
+                f"valid: {sorted(_BUS_RETURN_FIELDS)}"
+            )
+
+    args: dict = {"time": time}
+    if bus_pipeline_id is not None:
+        args["busPipelineID"] = bus_pipeline_id
+
+    options = {"return": return_fields} if return_fields else None
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getBusses",
+            args,
+            options=options,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler busses: {e}",
+            operation="ak.wwise.core.profiler.getBusses",
+            details={
+                "error_type": type(e).__name__,
+                "time": time,
+                "bus_pipeline_id": bus_pipeline_id,
+                "return_fields": return_fields,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {"return": []}

@@ -976,6 +976,25 @@ def profiler_get_audio_objects(
         logger.exception("Failed to get profiler audio objects.")
         raise
 
+
+def profiler_get_busses(
+    time: int | str = "capture",
+    *,
+    bus_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_get_busses(
+            time,
+            bus_pipeline_id=bus_pipeline_id,
+            return_fields=return_fields,
+            timeout=timeout,
+        )
+    except Exception:
+        logger.exception("Failed to get profiler busses.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1349,6 +1368,12 @@ COMMANDS: dict[str, Command] = {
             "PREREQUISITE: profiler_enable_data(['audioObjects', ...]) for full data. "
             "Args: time: int|str='capture', bus_pipeline_id: int|None=None (filter to one bus), return_fields: list[str]|None=None (subset of audioObjectID/busPipelineID/instigatorPipelineID/effectClassID/effectIndex/effectPluginName/rmsMeter/peakMeter), timeout: float=5.0. "
             "Returns dict {'return': [{audio object fields}, ...]}. For Reflect/Pathing detection request effectPluginName, instigatorPipelineID, rmsMeter, peakMeter."
+    ),
+    "profiler_get_busses" : Command(
+        func=profiler_get_busses,
+        doc="Return busses active at a profiler capture time. "
+            "Args: time: int|str='capture', bus_pipeline_id: int|None=None, return_fields: list[str]|None=None (subset of pipelineID/mixBusID/objectGUID/objectName/gameObjectID/gameObjectName/deviceID/volume/downstreamGain/voiceCount/effectCount/depth), timeout: float=5.0. "
+            "Returns dict {'return': [{bus fields}, ...]}. Use voiceCount + effectCount per bus as a complementary diagnostic for bus-routing health."
     ),
 }
 
