@@ -1004,9 +1004,9 @@ def profiler_get_rtpcs(time: int | str = "capture", *, timeout: float = 5.0) -> 
         raise
 
 
-def profiler_save_capture(file_path: str) -> dict:
+def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
     try:
-        return WwisePythonLibrary.profiler_save_capture(file_path)
+        return WwisePythonLibrary.profiler_save_capture(file_path, timeout=timeout)
     except Exception:
         logger.exception("Failed to save profiler capture.")
         raise
@@ -1400,7 +1400,7 @@ COMMANDS: dict[str, Command] = {
     "profiler_save_capture" : Command(
         func=profiler_save_capture,
         doc="Save the current profiler capture to a .prof file via ak.wwise.core.profiler.saveCapture (NOT saveProfilerCapture). "
-            "Args: file_path: str (absolute path the Wwise Authoring process can write to, typically ending .prof). "
+            "Args: file_path: str (absolute path the Wwise Authoring process can write to, typically ending .prof), timeout: float = 5.0. "
             "Returns empty dict on success."
     ),
 }

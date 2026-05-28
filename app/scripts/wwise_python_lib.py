@@ -3516,7 +3516,7 @@ def profiler_get_rtpcs(
     return response if response is not None else {"return": []}
 
 
-def profiler_save_capture(file_path: str) -> dict:
+def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
     """
     Save the current profiler capture to a .prof file.
 
@@ -3528,6 +3528,10 @@ def profiler_save_capture(file_path: str) -> dict:
     file_path : str
         Absolute path the Wwise Authoring process can write to. Typically
         ends with .prof.
+    timeout : float, optional
+        WAAPI call timeout in seconds. Defaults to 5.0; saving a .prof
+        capture is disk I/O that can realistically exceed the WwiseSession
+        default of 1.0s.
 
     Returns
     -------
@@ -3540,6 +3544,7 @@ def profiler_save_capture(file_path: str) -> dict:
         response = waapi_call(
             "ak.wwise.core.profiler.saveCapture",
             {"file": file_path},
+            timeout=timeout,
         )
     except WwisePyLibError:
         raise
@@ -3547,6 +3552,6 @@ def profiler_save_capture(file_path: str) -> dict:
         raise WwiseApiError(
             f"Failed to save profiler capture: {e}",
             operation="ak.wwise.core.profiler.saveCapture",
-            details={"error_type": type(e).__name__, "file_path": file_path},
+            details={"error_type": type(e).__name__, "file_path": file_path, "timeout": timeout},
         )
     return response if response is not None else {}
