@@ -911,6 +911,14 @@ def profiler_get_cursor_time(cursor: str = "capture") -> dict:
         logger.exception("Failed to get profiler cursor time.")
         raise
 
+
+def profiler_enable_data(data_types: list) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_enable_data(data_types)
+    except Exception:
+        logger.exception("Failed to enable profiler data.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1256,6 +1264,12 @@ COMMANDS: dict[str, Command] = {
     "profiler_get_cursor_time" : Command(
         func=profiler_get_cursor_time,
         doc="Return profiler cursor time in ms. Args: cursor: str = 'capture' ('capture' for live capture cursor, 'user' for the user-manipulated cursor). Returns dict {'return': <int ms>}."
+    ),
+    "profiler_enable_data" : Command(
+        func=profiler_enable_data,
+        doc="Enable or disable specific Profiler data types for this session. Each item is either a string (enable=True) or a (dataType, enable_bool) pair. "
+            "CRITICAL: include 'voiceInspector' before calling profiler_get_voice_contributions or its return tree will be empty. "
+            "Args: data_types: list[str | (str, bool)]. Valid dataType values: cpu, memory, stream, voices, listener, obstructionOcclusion, markersNotification, soundbanks, loadedMedia, preparedObjects, preparedGameSyncs, interactiveMusic, streamingDevice, meter, auxiliarySends, apiCalls, spatialAudio, spatialAudioRaycasting, voiceInspector, audioObjects, gameSyncs. Returns dict (empty on success)."
     ),
 }
 

@@ -3022,3 +3022,81 @@ def profiler_get_cursor_time(cursor: str = "capture") -> dict:
             details={"error_type": type(e).__name__, "cursor": cursor},
         )
     return response if response is not None else {}
+
+
+_PROFILER_DATA_TYPES = frozenset({
+    "cpu", "memory", "stream", "voices", "listener",
+    "obstructionOcclusion", "markersNotification", "soundbanks",
+    "loadedMedia", "preparedObjects", "preparedGameSyncs",
+    "interactiveMusic", "streamingDevice", "meter", "auxiliarySends",
+    "apiCalls", "spatialAudio", "spatialAudioRaycasting",
+    "voiceInspector", "audioObjects", "gameSyncs",
+})
+
+
+def profiler_enable_data(data_types: list) -> dict:
+    """
+    Enable or disable specific profiler data type captures, overriding the
+    user's Profiler preferences for the current session.
+
+    Each item is either a bare string (enable defaults to True) or a
+    (dataType, enable_bool) tuple/list.
+
+    Critical
+    --------
+    'voiceInspector' must be in this list before any
+    profiler_get_voice_contributions() call returns useful data — the local
+    WAAPI schema for enableProfilerData carries an example titled
+    "Enabling profiler data required for getVoiceContributions" that pins
+    this dependency.
+
+    Parameters
+    ----------
+    data_types : list[str | tuple[str, bool] | list]
+        Items from the profilerDataType enum (see _PROFILER_DATA_TYPES).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response (empty dict on success).
+    """
+    if not isinstance(data_types, list) or not data_types:
+        raise WwiseValidationError("data_types must be a non-empty list")
+
+    payload: list[dict] = []
+    for i, item in enumerate(data_types):
+        if isinstance(item, str):
+            dt, enable = item, None
+        elif isinstance(item, (tuple, list)) and len(item) == 2:
+            dt, enable = item[0], item[1]
+            if not isinstance(enable, bool):
+                raise WwiseValidationError(
+                    f"data_types[{i}] second element must be bool, got {type(enable).__name__}"
+                )
+        else:
+            raise WwiseValidationError(
+                f"data_types[{i}] must be str or (str, bool) pair, got {type(item).__name__}"
+            )
+        if dt not in _PROFILER_DATA_TYPES:
+            raise WwiseValidationError(
+                f"data_types[{i}] unknown dataType {dt!r}; valid: {sorted(_PROFILER_DATA_TYPES)}"
+            )
+        entry: dict = {"dataType": dt}
+        if enable is not None:
+            entry["enable"] = enable
+        payload.append(entry)
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.enableProfilerData",
+            {"dataTypes": payload},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to enable profiler data: {e}",
+            operation="ak.wwise.core.profiler.enableProfilerData",
+            details={"error_type": type(e).__name__, "data_types": payload},
+        )
+    return response if response is not None else {}
