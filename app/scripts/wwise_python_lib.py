@@ -3069,6 +3069,10 @@ def profiler_enable_data(data_types: list) -> dict:
             dt, enable = item, None
         elif isinstance(item, (tuple, list)) and len(item) == 2:
             dt, enable = item[0], item[1]
+            if not isinstance(dt, str):
+                raise WwiseValidationError(
+                    f"data_types[{i}] first element must be str, got {type(dt).__name__}"
+                )
             if not isinstance(enable, bool):
                 raise WwiseValidationError(
                     f"data_types[{i}] second element must be bool, got {type(enable).__name__}"
