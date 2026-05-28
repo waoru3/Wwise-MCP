@@ -919,6 +919,25 @@ def profiler_enable_data(data_types: list) -> dict:
         logger.exception("Failed to enable profiler data.")
         raise
 
+
+def profiler_get_voices(
+    time: int | str = "capture",
+    *,
+    voice_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_get_voices(
+            time,
+            voice_pipeline_id=voice_pipeline_id,
+            return_fields=return_fields,
+            timeout=timeout,
+        )
+    except Exception:
+        logger.exception("Failed to get profiler voices.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1270,6 +1289,12 @@ COMMANDS: dict[str, Command] = {
         doc="Enable or disable specific Profiler data types for this session. Each item is either a string (enable=True) or a (dataType, enable_bool) pair. "
             "CRITICAL: include 'voiceInspector' before calling profiler_get_voice_contributions or its return tree will be empty. "
             "Args: data_types: list[str | (str, bool)]. Valid dataType values: cpu, memory, stream, voices, listener, obstructionOcclusion, markersNotification, soundbanks, loadedMedia, preparedObjects, preparedGameSyncs, interactiveMusic, streamingDevice, meter, auxiliarySends, apiCalls, spatialAudio, spatialAudioRaycasting, voiceInspector, audioObjects, gameSyncs. Returns dict (empty on success)."
+    ),
+    "profiler_get_voices" : Command(
+        func=profiler_get_voices,
+        doc="Return voices active at a profiler capture time. "
+            "Args: time: int|str='capture' (ms integer or 'user'|'capture'), voice_pipeline_id: int|None=None (filter to one voice by uint32 pipeline ID), return_fields: list[str]|None=None (subset of pipelineID/playingID/soundID/gameObjectID/gameObjectName/objectGUID/objectName/playTargetID/playTargetGUID/playTargetName/baseVolume/gameAuxSendVolume/envelope/normalizationGain/lowPassFilter/highPassFilter/priority/isStarted/isVirtual/isForcedVirtual), timeout: float=5.0. "
+            "Returns dict {'return': [{voice fields}, ...]}. For chain verification request pipelineID, gameObjectID, gameObjectName, baseVolume, envelope, isVirtual, isStarted."
     ),
 }
 

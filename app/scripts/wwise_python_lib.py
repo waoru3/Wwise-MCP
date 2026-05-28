@@ -3104,3 +3104,91 @@ def profiler_enable_data(data_types: list) -> dict:
             details={"error_type": type(e).__name__, "data_types": payload},
         )
     return response if response is not None else {}
+
+
+_VOICE_RETURN_FIELDS = frozenset({
+    "pipelineID", "playingID", "soundID",
+    "gameObjectID", "gameObjectName",
+    "objectGUID", "objectName",
+    "playTargetID", "playTargetGUID", "playTargetName",
+    "baseVolume", "gameAuxSendVolume", "envelope", "normalizationGain",
+    "lowPassFilter", "highPassFilter", "priority",
+    "isStarted", "isVirtual", "isForcedVirtual",
+})
+
+
+def profiler_get_voices(
+    time: int | str = "capture",
+    *,
+    voice_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve voices active at a specific profiler capture time.
+
+    Parameters
+    ----------
+    time : int | str
+        Integer ms or one of 'user' / 'capture'. Defaults to 'capture'.
+    voice_pipeline_id : int | None
+        Optional uint32 to restrict the response to one voice.
+    return_fields : list[str] | None
+        Subset of _VOICE_RETURN_FIELDS. WAAPI defaults to pipelineID +
+        gameObjectID + objectGUID when omitted.
+    timeout : float
+        WAAPI reply timeout. Default 5.0s (5x global default) because
+        getVoices can pause briefly when the session is hot.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": [{...voice}, ...]}.
+    """
+    _validate_profiler_time(time)
+
+    if voice_pipeline_id is not None:
+        if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
+            raise WwiseValidationError("voice_pipeline_id must be an int")
+        if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
+            raise WwiseValidationError(
+                f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
+            )
+
+    if return_fields is not None:
+        if not isinstance(return_fields, list) or not return_fields:
+            raise WwiseValidationError("return_fields must be a non-empty list when provided")
+        bad = [f for f in return_fields if not isinstance(f, str) or f not in _VOICE_RETURN_FIELDS]
+        if bad:
+            raise WwiseValidationError(
+                f"return_fields contains unknown values {bad}; "
+                f"valid: {sorted(_VOICE_RETURN_FIELDS)}"
+            )
+
+    args: dict = {"time": time}
+    if voice_pipeline_id is not None:
+        args["voicePipelineID"] = voice_pipeline_id
+
+    options = {"return": return_fields} if return_fields else None
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getVoices",
+            args,
+            options=options,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler voices: {e}",
+            operation="ak.wwise.core.profiler.getVoices",
+            details={
+                "error_type": type(e).__name__,
+                "time": time,
+                "voice_pipeline_id": voice_pipeline_id,
+                "return_fields": return_fields,
+            },
+        )
+    return response if response is not None else {"return": []}
