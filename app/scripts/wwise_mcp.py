@@ -995,6 +995,14 @@ def profiler_get_busses(
         logger.exception("Failed to get profiler busses.")
         raise
 
+
+def profiler_get_rtpcs(time: int | str = "capture", *, timeout: float = 5.0) -> dict:
+    try:
+        return WwisePythonLibrary.profiler_get_rtpcs(time, timeout=timeout)
+    except Exception:
+        logger.exception("Failed to get profiler RTPCs.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1374,6 +1382,12 @@ COMMANDS: dict[str, Command] = {
         doc="Return busses active at a profiler capture time. "
             "Args: time: int|str='capture', bus_pipeline_id: int|None=None, return_fields: list[str]|None=None (subset of pipelineID/mixBusID/objectGUID/objectName/gameObjectID/gameObjectName/deviceID/volume/downstreamGain/voiceCount/effectCount/depth), timeout: float=5.0. "
             "Returns dict {'return': [{bus fields}, ...]}. Use voiceCount + effectCount per bus as a complementary diagnostic for bus-routing health."
+    ),
+    "profiler_get_rtpcs" : Command(
+        func=profiler_get_rtpcs,
+        doc="Return active RTPCs at a profiler capture time. "
+            "Args: time: int|str='capture', timeout: float=5.0. "
+            "Returns dict {'return': [{'id': guid, 'name': str, 'gameObjectId': int (AK_INVALID_GAME_OBJECT for global), 'value': number}]}. Useful for verifying per-feature mute RTPCs like Reflections_MixLevel hold expected values."
     ),
 }
 

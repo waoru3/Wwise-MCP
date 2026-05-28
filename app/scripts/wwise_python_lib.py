@@ -3471,3 +3471,46 @@ def profiler_get_busses(
             },
         )
     return response if response is not None else {"return": []}
+
+
+def profiler_get_rtpcs(
+    time: int | str = "capture",
+    *,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve RTPCs (Game Parameters / LFO / Time / Envelope / MIDI params)
+    that are active at the given profiler capture time.
+
+    The endpoint takes no return-field whitelist - the response shape is
+    fixed by the WAAPI schema.
+
+    Parameters
+    ----------
+    time : int | str
+    timeout : float
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response:
+        {"return": [{"id": guid, "name": str,
+                     "gameObjectId": int64,  # AK_INVALID_GAME_OBJECT for global
+                     "value": number}]}.
+    """
+    _validate_profiler_time(time)
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getRTPCs",
+            {"time": time},
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler RTPCs: {e}",
+            operation="ak.wwise.core.profiler.getRTPCs",
+            details={"error_type": type(e).__name__, "time": time, "timeout": timeout},
+        )
+    return response if response is not None else {"return": []}
