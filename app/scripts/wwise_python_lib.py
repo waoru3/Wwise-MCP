@@ -3004,7 +3004,7 @@ def profiler_get_cursor_time(cursor: str = "capture") -> dict:
     dict
         Raw WAAPI response: {"return": <int ms>}.
     """
-    if cursor not in _PROFILER_CURSORS:
+    if not isinstance(cursor, str) or cursor not in _PROFILER_CURSORS:
         raise WwiseValidationError(
             f"cursor must be one of {sorted(_PROFILER_CURSORS)}, got {cursor!r}"
         )
