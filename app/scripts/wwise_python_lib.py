@@ -3295,7 +3295,7 @@ def profiler_get_voice_contributions(
 
 _AUDIO_OBJECT_RETURN_FIELDS = frozenset({
     # Schema-exact: audioObjectReturnOptions enum at
-    # waapi_definitions.json:510-533. Do not subset — AC #2 requires
+    # waapi_definitions.json:510-533. Do not subset - AC #2 requires
     # zero schema drift.
     "busName", "effectPluginName", "audioObjectID", "busPipelineID",
     "gameObjectID", "gameObjectName", "audioObjectName",
