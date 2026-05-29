@@ -137,14 +137,14 @@ before any `profiler_get_voice_contributions` call. Without
 |---|---|
 | `profiler_start_capture()` | Begin capture |
 | `profiler_stop_capture()` | End capture |
-| `profiler_get_cursor_time(cursor)` | Read 'capture' or 'user' cursor (ms) |
+| `profiler_get_cursor_time(cursor='capture')` | Read 'capture' or 'user' cursor (ms) |
 | `profiler_enable_data(data_types)` | Toggle Profiler data types (incl. `voiceInspector`) |
-| `profiler_get_voices(time, ...)` | Voices live at `time` with filterable return fields |
-| `profiler_get_voice_contributions(voice_pipeline_id, time, ...)` | Volume/LPF/HPF contribution tree for one voice path |
-| `profiler_get_audio_objects(time, ...)` | Post-mix Audio Objects incl. `effectPluginName` + RMS/peak meters |
-| `profiler_get_busses(time, ...)` | Busses live at `time` |
-| `profiler_get_rtpcs(time)` | Active RTPCs (Game Parameters / LFO / Time / Envelope / MIDI) |
-| `profiler_save_capture(file_path)` | Save current capture to `.prof` |
+| `profiler_get_voices(time='capture', *, voice_pipeline_id=None, return_fields=None, timeout=5.0)` | Voices live at `time` with filterable return fields |
+| `profiler_get_voice_contributions(voice_pipeline_id, *, time='capture', busses_pipeline_id=None, timeout=5.0)` | Volume/LPF/HPF contribution tree for one voice path |
+| `profiler_get_audio_objects(time='capture', *, return_fields=None, bus_pipeline_id=None, timeout=5.0)` | Post-mix Audio Objects incl. `effectPluginName` + RMS/peak meters |
+| `profiler_get_busses(time='capture', *, return_fields=None, bus_pipeline_id=None, timeout=5.0)` | Busses live at `time` |
+| `profiler_get_rtpcs(time='capture', *, timeout=5.0)` | Active RTPCs (Game Parameters / LFO / Time / Envelope / MIDI) |
+| `profiler_save_capture(file_path, *, timeout=5.0)` | Save current capture to `.prof` (absolute path) |
 
 URI correction: the save endpoint is `ak.wwise.core.profiler.saveCapture`,
 not `saveProfilerCapture` (which does not exist in the 2024.1 WAAPI index).

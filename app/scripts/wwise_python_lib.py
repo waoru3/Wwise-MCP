@@ -2897,11 +2897,12 @@ def toggle_layout(request_layout : str)->dict:
 # AND readers) are restricted to userInterface / commandLine contexts per the
 # local WAAPI JSON schemas under
 # C:/Audiokinetic/Wwise_2024.1.13.9056/Authoring/Data/Schemas/WAAPI/. They
-# require Wwise Authoring to be running (a console / headless WwiseConsole.exe
-# context with --command-line works; pure WAAPI-only without an Authoring
-# instance does not). "Visible UI" in the docstrings below is shorthand for
-# "Authoring process with a userInterface or commandLine context"; it does
-# not strictly require a graphical window.
+# require Wwise Authoring to be running (the headless `WwiseConsole.exe
+# waapi-server` form is the commandLine context that satisfies the schema;
+# pure WAAPI-only without an Authoring instance does not). "Visible UI" in
+# the docstrings below is shorthand for "Authoring process with a
+# userInterface or commandLine context"; it does not strictly require a
+# graphical window.
 #
 # Reader endpoints (getVoices, getVoiceContributions, getAudioObjects, etc.)
 # use a 5.0s waapi_call timeout because the live capture pipeline can stall
