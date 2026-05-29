@@ -32,10 +32,13 @@ def test_custom_timeout_forwarded(mock_waapi):
     assert mock_waapi.call_args.kwargs.get("timeout") == 12.0
 
 
-def test_none_response_coerced_to_empty_dict(mock_waapi):
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
     mock_waapi.return_value = None
-    assert wwise_python_lib.remote_disconnect() == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.remote_disconnect()
 
 
 def test_response_passthrough(mock_waapi):

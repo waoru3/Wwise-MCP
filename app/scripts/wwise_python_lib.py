@@ -37,6 +37,19 @@ def waapi_call(
     
     return WwiseSession.waapi_call(uri, args or {}, options=options, **kw)
 
+def _require_non_none(response, operation, **details):
+    """WAAPI failures raise (client uses allow_exception=True); a None here would
+    be an anomaly, so surface it as an error instead of a fake-empty success.
+    Mirrors the existing get_project_info (upstream) / create_effect_share_set
+    (fork-local) None->raise pattern."""
+    if response is None:
+        raise WwiseApiError(
+            f"WAAPI returned None for {operation}",
+            operation=operation,
+            details=details or None,
+        )
+    return response
+
 # ==============================================================================
 #                               Soundbank 
 # ==============================================================================
@@ -1785,7 +1798,7 @@ def set_plugin_property(
             },
         )
 
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.object.set")
 
 
 _RTPC_CURVE_SHAPES = frozenset({
@@ -1890,7 +1903,7 @@ def set_rtpc_curve(
             },
         )
 
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.object.set")
 
 
 def create_source_plugin(
@@ -2977,7 +2990,7 @@ def profiler_start_capture() -> dict:
             operation="ak.wwise.core.profiler.startCapture",
             details={"error_type": type(e).__name__},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.startCapture")
 
 
 def profiler_stop_capture() -> dict:
@@ -3003,7 +3016,7 @@ def profiler_stop_capture() -> dict:
             operation="ak.wwise.core.profiler.stopCapture",
             details={"error_type": type(e).__name__},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.stopCapture")
 
 
 def profiler_get_cursor_time(cursor: str = "capture") -> dict:
@@ -3038,7 +3051,7 @@ def profiler_get_cursor_time(cursor: str = "capture") -> dict:
             operation="ak.wwise.core.profiler.getCursorTime",
             details={"error_type": type(e).__name__, "cursor": cursor},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.getCursorTime")
 
 
 _PROFILER_DATA_TYPES = frozenset({
@@ -3120,7 +3133,7 @@ def profiler_enable_data(data_types: list) -> dict:
             operation="ak.wwise.core.profiler.enableProfilerData",
             details={"error_type": type(e).__name__, "data_types": payload},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.enableProfilerData")
 
 
 def _validate_uint32(value, name):
@@ -3220,7 +3233,7 @@ def profiler_get_voices(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getVoices")
 
 
 def profiler_get_voice_contributions(
@@ -3308,7 +3321,7 @@ def profiler_get_voice_contributions(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.getVoiceContributions")
 
 
 _AUDIO_OBJECT_RETURN_FIELDS = frozenset({
@@ -3391,7 +3404,7 @@ def profiler_get_audio_objects(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getAudioObjects")
 
 
 _BUS_RETURN_FIELDS = frozenset({
@@ -3466,7 +3479,7 @@ def profiler_get_busses(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getBusses")
 
 
 def profiler_get_rtpcs(
@@ -3510,7 +3523,7 @@ def profiler_get_rtpcs(
             operation="ak.wwise.core.profiler.getRTPCs",
             details={"error_type": type(e).__name__, "time": time, "timeout": timeout},
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getRTPCs")
 
 
 def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
@@ -3557,7 +3570,7 @@ def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.profiler.saveCapture",
             details={"error_type": type(e).__name__, "file_path": file_path, "timeout": timeout},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.saveCapture")
 
 
 def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
@@ -3596,7 +3609,7 @@ def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.remote.getConnectionStatus",
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.remote.getConnectionStatus")
 
 
 def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
@@ -3633,7 +3646,7 @@ def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.remote.getAvailableConsoles",
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
-    return response if response is not None else {"consoles": []}
+    return _require_non_none(response, "ak.wwise.core.remote.getAvailableConsoles")
 
 
 def remote_connect(
@@ -3720,7 +3733,7 @@ def remote_connect(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.remote.connect")
 
 
 def remote_disconnect(*, timeout: float = 5.0) -> dict:
@@ -3756,4 +3769,4 @@ def remote_disconnect(*, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.remote.disconnect",
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.remote.disconnect")

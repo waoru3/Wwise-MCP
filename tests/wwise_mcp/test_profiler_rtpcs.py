@@ -104,13 +104,14 @@ def test_waapi_exception_wrapped_with_full_details(mock_waapi):
     assert exc.value.operation == "ak.wwise.core.profiler.getRTPCs"
 
 
-def test_none_response_coerced_to_return_empty_list(mock_waapi):
-    """Schema returns a list - empty default must be {"return": []} not {}."""
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
-    result = wwise_python_lib.profiler_get_rtpcs()
-    assert result == {"return": []}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_get_rtpcs()
 
 
 def test_response_passed_through(mock_waapi):

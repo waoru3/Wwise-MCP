@@ -431,13 +431,15 @@ def test_returns_waapi_response_object_passthrough(mock_waapi):
     assert result == payload
 
 
-def test_normalises_none_to_empty_dict(mock_waapi):
-    """Defensive: WAAPI sometimes returns None; wrapper normalises to {} (NOT {'return': []})."""
+def test_raises_on_none(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
 
-    assert wwise_python_lib.profiler_get_voice_contributions(42) == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_get_voice_contributions(42)
 
 
 # ---------------------------------------------------------------------------

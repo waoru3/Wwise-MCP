@@ -49,10 +49,13 @@ def test_response_passthrough(mock_waapi):
     assert wwise_python_lib.remote_get_connection_status() == payload
 
 
-def test_none_response_coerced_to_empty_dict(mock_waapi):
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
     mock_waapi.return_value = None
-    assert wwise_python_lib.remote_get_connection_status() == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.remote_get_connection_status()
 
 
 def test_error_wrap_details(mock_waapi):

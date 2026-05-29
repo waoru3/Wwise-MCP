@@ -34,11 +34,13 @@ def test_response_passthrough(mock_waapi):
     assert wwise_python_lib.remote_get_available_consoles() == payload
 
 
-def test_none_response_coerced_to_empty_consoles(mock_waapi):
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
     mock_waapi.return_value = None
-    # Array-shaped endpoint: coerce None to the empty-array container, not {}.
-    assert wwise_python_lib.remote_get_available_consoles() == {"consoles": []}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.remote_get_available_consoles()
 
 
 def test_error_wrap_details(mock_waapi):

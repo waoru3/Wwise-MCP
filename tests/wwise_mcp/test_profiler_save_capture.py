@@ -91,13 +91,14 @@ def test_response_passthrough(mock_waapi):
     assert result == {"some": "payload"}
 
 
-def test_none_response_coerced_to_empty_dict(mock_waapi):
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
-    result = wwise_python_lib.profiler_save_capture(r"C:/tmp/capture.prof")
-    # saveCapture returns empty dict per WAAPI schema, NOT {"return": []}.
-    assert result == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_save_capture(r"C:/tmp/capture.prof")
 
 
 def test_error_wrap_details(mock_waapi):
