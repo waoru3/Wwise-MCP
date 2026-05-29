@@ -110,3 +110,12 @@ def test_library_docstring_restriction_note():
     # AC-NEW-1: userInterface-only restriction is explicit in the lib docstring.
     assert "userInterface" in doc
     assert "NOT commandLine" in doc
+
+
+@pytest.mark.parametrize("bad", [0, -1, float("nan"), float("inf"), True, "5"])
+def test_invalid_timeout_rejected(mock_waapi, bad):
+    import wwise_python_lib
+    from wwise_python_lib import WwiseValidationError
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.remote_get_connection_status(timeout=bad)
+    mock_waapi.assert_not_called()

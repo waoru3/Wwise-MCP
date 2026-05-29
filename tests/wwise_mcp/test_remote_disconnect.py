@@ -98,3 +98,12 @@ def test_commands_entry_and_restriction_note():
     assert "disconnect" in entry.doc.lower()
     assert "userInterface" in entry.doc
     assert "NOT commandLine" in entry.doc
+
+
+@pytest.mark.parametrize("bad", [0, -1, float("nan"), float("inf"), True, "5"])
+def test_invalid_timeout_rejected(mock_waapi, bad):
+    import wwise_python_lib
+    from wwise_python_lib import WwiseValidationError
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.remote_disconnect(timeout=bad)
+    mock_waapi.assert_not_called()

@@ -162,3 +162,27 @@ def test_commands_entry_notes():
     assert "userInterface" in entry.doc
     assert "NOT commandLine" in entry.doc
     assert "notificationPort" in entry.doc  # documents the deliberate omission
+
+
+@pytest.mark.parametrize("bad", [0, -1, float("nan"), float("inf"), True, "5"])
+def test_invalid_timeout_rejected(mock_waapi, bad):
+    import wwise_python_lib
+    from wwise_python_lib import WwiseValidationError
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.remote_connect("127.0.0.1", timeout=bad)
+    mock_waapi.assert_not_called()
+
+
+@pytest.mark.parametrize("bad", ["", "   "])
+def test_empty_app_name_rejected(mock_waapi, bad):
+    import wwise_python_lib
+    from wwise_python_lib import WwiseValidationError
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.remote_connect("127.0.0.1", app_name=bad)
+    mock_waapi.assert_not_called()
+
+
+def test_host_and_app_name_trimmed(mock_waapi):
+    import wwise_python_lib
+    wwise_python_lib.remote_connect("  127.0.0.1  ", app_name="  Unity  ")
+    assert mock_waapi.call_args.args[1] == {"host": "127.0.0.1", "appName": "Unity"}
