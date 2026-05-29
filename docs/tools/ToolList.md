@@ -424,7 +424,7 @@ Insert an Effect or Effect ShareSet reference into the `@Effects` list of a Bus,
 ### `create_effect_share_set`
 
 **Description**
-Creates a new Effect ShareSet (Custom Effect) under a parent Work Unit or folder via `ak.wwise.core.object.set`. Plug-in `classId` values are defined by the Wwise plug-in (see WAAPI `wobjects_index`); the caller supplies the value. Pairs with `add_effect_to_object` (introduced in a separate PR) for attaching the new ShareSet to a Bus or Actor-Mixer; until that command lands in the same branch, attachment must be performed by other means.
+Creates a new Effect ShareSet (Custom Effect) under a parent Work Unit or folder via `ak.wwise.core.object.set`. Plug-in `classId` values are defined by the Wwise plug-in (see WAAPI `wobjects_index`); the caller supplies the value. Pairs with `add_effect_to_object` for attaching the new ShareSet to a Bus or Actor-Mixer.
 
 **Arguments**
 
