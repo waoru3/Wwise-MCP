@@ -2917,6 +2917,22 @@ def toggle_layout(request_layout : str)->dict:
 _PROFILER_CURSORS = frozenset({"user", "capture"})
 
 
+def _validate_timeout_seconds(timeout: float, field_name: str = "timeout") -> float:
+    """Reject zero, negative, non-finite, or non-numeric timeout values.
+    WAAPI calls with timeout <= 0 fail immediately; non-finite (inf, nan) causes
+    undefined wait behavior in the dispatcher."""
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+        raise WwiseValidationError(
+            f"{field_name} must be a number (seconds), got {type(timeout).__name__}"
+        )
+    timeout_f = float(timeout)
+    if not math.isfinite(timeout_f) or timeout_f <= 0:
+        raise WwiseValidationError(
+            f"{field_name} must be a finite number > 0, got {timeout!r}"
+        )
+    return timeout_f
+
+
 def _validate_profiler_time(time: int | str) -> None:
     """Reject anything that is not a non-negative int or 'user' / 'capture'."""
     if isinstance(time, bool):
@@ -3148,6 +3164,7 @@ def profiler_get_voices(
     dict
         Raw WAAPI response: {"return": [{...voice}, ...]}.
     """
+    timeout = _validate_timeout_seconds(timeout)
     _validate_profiler_time(time)
 
     if voice_pipeline_id is not None:
@@ -3248,6 +3265,7 @@ def profiler_get_voice_contributions(
         optional index (per-emitter ray ID), optional children (recursive),
         optional parameters[{propertyType, reason, driver, driverValue, value}].
     """
+    timeout = _validate_timeout_seconds(timeout)
     if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
         raise WwiseValidationError("voice_pipeline_id must be an int")
     if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
@@ -3346,6 +3364,7 @@ def profiler_get_audio_objects(
     dict
         Raw WAAPI response: {"return": [{...audioObject}, ...]}.
     """
+    timeout = _validate_timeout_seconds(timeout)
     _validate_profiler_time(time)
 
     if bus_pipeline_id is not None:
@@ -3432,6 +3451,7 @@ def profiler_get_busses(
     dict
         Raw WAAPI response: {"return": [{...bus}, ...]}.
     """
+    timeout = _validate_timeout_seconds(timeout)
     _validate_profiler_time(time)
 
     if bus_pipeline_id is not None:
@@ -3507,6 +3527,7 @@ def profiler_get_rtpcs(
                      "gameObjectId": int64,  # AK_INVALID_GAME_OBJECT for global
                      "value": number}]}.
     """
+    timeout = _validate_timeout_seconds(timeout)
     _validate_profiler_time(time)
     try:
         response = waapi_call(
@@ -3547,8 +3568,14 @@ def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
     dict
         Empty dict on success.
     """
+    timeout = _validate_timeout_seconds(timeout)
     if not isinstance(file_path, str) or not file_path.strip():
         raise WwiseValidationError("file_path must be a non-empty string")
+    file_path = file_path.strip()
+    if not Path(file_path).is_absolute():
+        raise WwiseValidationError(
+            f"file_path must be an absolute path (Wwise Authoring's cwd is its own install dir, not the caller's; relative paths land in unexpected locations or fail silently). Got {file_path!r}"
+        )
     try:
         response = waapi_call(
             "ak.wwise.core.profiler.saveCapture",
