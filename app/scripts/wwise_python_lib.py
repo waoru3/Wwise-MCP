@@ -50,6 +50,18 @@ def _require_non_none(response, operation, **details):
         )
     return response
 
+def _reject_at_prefixed(name):
+    """Property names are passed without the leading '@'; the wrapper adds it.
+    A caller-supplied '@' would produce '@@Name'. Also guards type, because the
+    create_* loops pass dict keys straight in (a non-str key would otherwise
+    blow up on .startswith with a raw AttributeError)."""
+    if not isinstance(name, str) or not name.strip():
+        raise WwiseValidationError(f"property name must be a non-empty string, got {name!r}")
+    if name.startswith("@"):
+        raise WwiseValidationError(
+            f"property name must not include the leading '@' (got {name!r}); the wrapper adds it"
+        )
+
 # ==============================================================================
 #                               Soundbank 
 # ==============================================================================
@@ -1685,6 +1697,7 @@ def create_effect_share_set(
 
     child: dict = {"type": "Effect", "name": name, "classId": class_id}
     for prop_name, prop_value in (properties or {}).items():
+        _reject_at_prefixed(prop_name)
         child[f"@{prop_name}"] = prop_value
 
     args = {
@@ -1773,6 +1786,7 @@ def set_plugin_property(
         raise WwiseValidationError("object_path must be a non-empty string")
     if not isinstance(property_name, str) or not property_name.strip():
         raise WwiseValidationError("property_name must be a non-empty string")
+    _reject_at_prefixed(property_name)
     if value is None:
         raise WwiseValidationError("value cannot be None")
 
@@ -1978,6 +1992,7 @@ def create_source_plugin(
     if language is not None:
         child["language"] = language
     for prop_name, prop_value in (properties or {}).items():
+        _reject_at_prefixed(prop_name)
         child[f"@{prop_name}"] = prop_value
 
     args = {
