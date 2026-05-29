@@ -290,7 +290,7 @@ def test_rejects_bool_element_in_busses_pipeline_id(mock_waapi):
     from wwise_errors import WwiseValidationError
     import wwise_python_lib
 
-    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[0\] must be int"):
+    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[0\] must be an int"):
         wwise_python_lib.profiler_get_voice_contributions(42, busses_pipeline_id=[True, 5])
     _assert_not_called(mock_waapi)
 
@@ -301,7 +301,7 @@ def test_rejects_non_int_element_in_busses_pipeline_id(mock_waapi, bad_elem):
     from wwise_errors import WwiseValidationError
     import wwise_python_lib
 
-    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[1\] must be int"):
+    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[1\] must be an int"):
         wwise_python_lib.profiler_get_voice_contributions(
             42, busses_pipeline_id=[100, bad_elem]
         )

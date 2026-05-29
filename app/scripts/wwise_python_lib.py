@@ -3123,6 +3123,28 @@ def profiler_enable_data(data_types: list) -> dict:
     return response if response is not None else {}
 
 
+def _validate_uint32(value, name):
+    """Schema is number >= 0; we also reject > uint32 max as a defensive ceiling
+    because WAAPI pipeline IDs are 32-bit."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise WwiseValidationError(f"{name} must be an int")
+    if value < 0 or value > 0xFFFFFFFF:
+        raise WwiseValidationError(
+            f"{name} must be a non-negative pipeline ID "
+            f"(schema: number >= 0; defensive uint32 cap applied), got {value}"
+        )
+
+
+def _validate_return_fields(return_fields, allowed):
+    if not isinstance(return_fields, list) or not return_fields:
+        raise WwiseValidationError("return_fields must be a non-empty list when provided")
+    bad = [f for f in return_fields if not isinstance(f, str) or f not in allowed]
+    if bad:
+        raise WwiseValidationError(
+            f"return_fields contains unknown values {bad}; valid: {sorted(allowed)}"
+        )
+
+
 _VOICE_RETURN_FIELDS = frozenset({
     "pipelineID", "playingID", "soundID",
     "gameObjectID", "gameObjectName",
@@ -3168,22 +3190,10 @@ def profiler_get_voices(
     _validate_profiler_time(time)
 
     if voice_pipeline_id is not None:
-        if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
-            raise WwiseValidationError("voice_pipeline_id must be an int")
-        if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
-            raise WwiseValidationError(
-                f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
-            )
+        _validate_uint32(voice_pipeline_id, "voice_pipeline_id")
 
     if return_fields is not None:
-        if not isinstance(return_fields, list) or not return_fields:
-            raise WwiseValidationError("return_fields must be a non-empty list when provided")
-        bad = [f for f in return_fields if not isinstance(f, str) or f not in _VOICE_RETURN_FIELDS]
-        if bad:
-            raise WwiseValidationError(
-                f"return_fields contains unknown values {bad}; "
-                f"valid: {sorted(_VOICE_RETURN_FIELDS)}"
-            )
+        _validate_return_fields(return_fields, _VOICE_RETURN_FIELDS)
 
     args: dict = {"time": time}
     if voice_pipeline_id is not None:
@@ -3266,12 +3276,7 @@ def profiler_get_voice_contributions(
         optional parameters[{propertyType, reason, driver, driverValue, value}].
     """
     timeout = _validate_timeout_seconds(timeout)
-    if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
-        raise WwiseValidationError("voice_pipeline_id must be an int")
-    if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
-        raise WwiseValidationError(
-            f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
-        )
+    _validate_uint32(voice_pipeline_id, "voice_pipeline_id")
 
     _validate_profiler_time(time)
 
@@ -3284,14 +3289,7 @@ def profiler_get_voice_contributions(
                 f"{_MAX_BUS_CHAIN_DEPTH} (bus chains are not expected to be longer than this in practice)"
             )
         for i, b in enumerate(busses_pipeline_id):
-            if isinstance(b, bool) or not isinstance(b, int):
-                raise WwiseValidationError(
-                    f"busses_pipeline_id[{i}] must be int, got {type(b).__name__}"
-                )
-            if b < 0 or b > 0xFFFFFFFF:
-                raise WwiseValidationError(
-                    f"busses_pipeline_id[{i}] must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {b}"
-                )
+            _validate_uint32(b, f"busses_pipeline_id[{i}]")
 
     args: dict = {"voicePipelineID": voice_pipeline_id, "time": time}
     if busses_pipeline_id is not None:
@@ -3368,22 +3366,10 @@ def profiler_get_audio_objects(
     _validate_profiler_time(time)
 
     if bus_pipeline_id is not None:
-        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
-            raise WwiseValidationError("bus_pipeline_id must be an int")
-        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
-            raise WwiseValidationError(
-                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
-            )
+        _validate_uint32(bus_pipeline_id, "bus_pipeline_id")
 
     if return_fields is not None:
-        if not isinstance(return_fields, list) or not return_fields:
-            raise WwiseValidationError("return_fields must be a non-empty list when provided")
-        bad = [f for f in return_fields if not isinstance(f, str) or f not in _AUDIO_OBJECT_RETURN_FIELDS]
-        if bad:
-            raise WwiseValidationError(
-                f"return_fields contains unknown values {bad}; "
-                f"valid: {sorted(_AUDIO_OBJECT_RETURN_FIELDS)}"
-            )
+        _validate_return_fields(return_fields, _AUDIO_OBJECT_RETURN_FIELDS)
 
     args: dict = {"time": time}
     if bus_pipeline_id is not None:
@@ -3455,22 +3441,10 @@ def profiler_get_busses(
     _validate_profiler_time(time)
 
     if bus_pipeline_id is not None:
-        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
-            raise WwiseValidationError("bus_pipeline_id must be an int")
-        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
-            raise WwiseValidationError(
-                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
-            )
+        _validate_uint32(bus_pipeline_id, "bus_pipeline_id")
 
     if return_fields is not None:
-        if not isinstance(return_fields, list) or not return_fields:
-            raise WwiseValidationError("return_fields must be a non-empty list when provided")
-        bad = [f for f in return_fields if not isinstance(f, str) or f not in _BUS_RETURN_FIELDS]
-        if bad:
-            raise WwiseValidationError(
-                f"return_fields contains unknown values {bad}; "
-                f"valid: {sorted(_BUS_RETURN_FIELDS)}"
-            )
+        _validate_return_fields(return_fields, _BUS_RETURN_FIELDS)
 
     args: dict = {"time": time}
     if bus_pipeline_id is not None:
