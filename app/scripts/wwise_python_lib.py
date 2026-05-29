@@ -3215,7 +3215,13 @@ def profiler_get_voice_contributions(
     Parameters
     ----------
     voice_pipeline_id : int
-        Pipeline ID (uint32) of the voice. Obtain from profiler_get_voices.
+        Pipeline ID of the voice. Obtain from profiler_get_voices.
+        Validation: int + non-negative + capped at 0xFFFFFFFF. The local
+        schema (waapi_definitions.json:pipelineID) only requires
+        `number >= 0`, but Wwise's internal AkPipelineID type is uint32,
+        so the wrapper enforces uint32 as a defensive deviation. Callers
+        who need to bypass the cap (e.g. a hypothetical Wwise version
+        that widens the type) should call waapi_call() directly.
     time : int | str
         Integer ms or one of 'user' / 'capture'. Defaults to 'capture'.
     busses_pipeline_id : list[int] | None
@@ -3226,6 +3232,8 @@ def profiler_get_voice_contributions(
         WAAPI's behavior with an absent `bussesPipelineID` is not
         documented to equal the empty-array case, so callers that mean
         "dry path" should pass `[]` rather than rely on omission.
+        Each entry has the same uint32 cap as voice_pipeline_id (same
+        defensive rationale; same escape hatch).
     timeout : float
         WAAPI reply timeout. Default 5.0s.
 

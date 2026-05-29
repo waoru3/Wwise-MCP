@@ -124,8 +124,9 @@ Feel free to reach out to me at bilkentaudiodev@gmail.com
 
 Ten WAAPI Profiler endpoints exposed for runtime voice-chain inspection,
 Effect plug-in chain verification, and `.prof` capture export. All require
-Wwise Authoring 2024.1+ running with a visible UI (the capture-control
-endpoints are restricted to `userInterface` / `commandLine` contexts).
+Wwise Authoring 2024.1+ running. The endpoints are restricted to
+`userInterface` / `commandLine` execution contexts per the WAAPI schemas
+(a Wwise Authoring context restriction, not a visible-window requirement).
 
 **Critical prerequisite for voice contribution inspection:** call
 `profiler_enable_data(['voices', 'voiceInspector'])` once per session
