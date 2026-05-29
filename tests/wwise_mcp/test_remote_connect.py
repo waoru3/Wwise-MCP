@@ -69,6 +69,16 @@ def test_command_port_must_be_uint16(mock_waapi, bad):
     mock_waapi.assert_not_called()
 
 
+@pytest.mark.parametrize("bound", [0, 65535])
+def test_command_port_boundary_accepted(mock_waapi, bound):
+    import wwise_python_lib
+    wwise_python_lib.remote_connect("127.0.0.1", app_name="Unity", command_port=bound)
+    assert mock_waapi.call_args.args[1] == {
+        "host": "127.0.0.1", "appName": "Unity", "commandPort": bound,
+    }
+    assert mock_waapi.call_count == 1
+
+
 def test_app_name_must_be_string(mock_waapi):
     import wwise_python_lib
     from wwise_python_lib import WwiseValidationError
@@ -81,6 +91,12 @@ def test_none_response_coerced_to_empty_dict(mock_waapi):
     import wwise_python_lib
     mock_waapi.return_value = None
     assert wwise_python_lib.remote_connect("127.0.0.1") == {}
+
+
+def test_response_passthrough(mock_waapi):
+    import wwise_python_lib
+    mock_waapi.return_value = {"some": "payload"}
+    assert wwise_python_lib.remote_connect("127.0.0.1") == {"some": "payload"}
 
 
 def test_default_timeout_5_seconds(mock_waapi):
