@@ -270,6 +270,13 @@ def include_in_soundbank(
     if filter is None:
         effective_filter = ["events", "structures"]
     else:
+        if not isinstance(filter, list):
+            raise WwiseValidationError(
+                f"filter must be a list when provided, got {type(filter).__name__}"
+            )
+        non_str = [f for f in filter if not isinstance(f, str)]
+        if non_str:
+            raise WwiseValidationError(f"filter entries must be strings, got non-str: {non_str!r}")
         bad = [f for f in filter if f not in _SETINCLUSIONS_FILTER_VALUES]
         if bad:
             raise WwiseValidationError(
