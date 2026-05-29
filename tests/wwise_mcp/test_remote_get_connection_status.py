@@ -34,7 +34,17 @@ def test_custom_timeout_forwarded(mock_waapi):
 
 def test_response_passthrough(mock_waapi):
     import wwise_python_lib
-    payload = {"isConnected": True, "status": "Connected", "console": {"appName": "Unity"}}
+    payload = {
+        "isConnected": True,
+        "status": "Connected",
+        "console": {
+            "name": "Wwise",
+            "platform": "Windows",
+            "customPlatform": "Windows",
+            "host": "127.0.0.1",
+            "appName": "Unity",
+        },
+    }
     mock_waapi.return_value = payload
     assert wwise_python_lib.remote_get_connection_status() == payload
 
@@ -76,10 +86,27 @@ def test_shim_forwards_to_library(mock_waapi):
     assert result == {}
 
 
+def test_shim_forwards_custom_timeout(mock_waapi):
+    import wwise_mcp
+    wwise_mcp.remote_get_connection_status(timeout=12.0)
+    assert mock_waapi.call_args.kwargs.get("timeout") == 12.0
+
+
 def test_commands_entry_and_restriction_note():
     import wwise_mcp
     entry = wwise_mcp.COMMANDS["remote_get_connection_status"]
     assert entry.func is wwise_mcp.remote_get_connection_status
     assert "getConnectionStatus" in entry.doc
-    # AC-NEW-1: the userInterface-only restriction is documented.
+    # AC-NEW-1: the userInterface-only restriction is documented in both the
+    # COMMANDS doc and the library docstring.
     assert "userInterface" in entry.doc
+    assert "NOT commandLine" in entry.doc
+
+
+def test_library_docstring_restriction_note():
+    import wwise_python_lib
+    doc = wwise_python_lib.remote_get_connection_status.__doc__
+    assert doc is not None
+    # AC-NEW-1: userInterface-only restriction is explicit in the lib docstring.
+    assert "userInterface" in doc
+    assert "NOT commandLine" in doc
