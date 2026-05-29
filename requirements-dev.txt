@@ -1,0 +1,7 @@
+# Test / development dependencies. Install with:
+#   pip install -r requirements-dev.txt
+# then run the suite with:
+#   python -m pytest
+-r requirements.txt
+pytest>=8.0
+pytest-mock>=3.12
