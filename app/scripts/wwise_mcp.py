@@ -1414,7 +1414,7 @@ COMMANDS: dict[str, Command] = {
         func=profiler_get_audio_objects,
         doc="Return Audio Objects in the post-mix pipeline at a profiler capture time. "
             "PREREQUISITE: profiler_enable_data(['audioObjects', ...]) for full data. "
-            "Args: time: int|str='capture', bus_pipeline_id: int|None=None (filter to one bus), return_fields: list[str]|None=None (subset of audioObjectID/busPipelineID/instigatorPipelineID/effectClassID/effectIndex/effectPluginName/rmsMeter/peakMeter), timeout: float=5.0. "
+            "Args: time: int|str='capture', bus_pipeline_id: int|None=None (filter to one bus), return_fields: list[str]|None=None (subset of busName/effectPluginName/audioObjectID/busPipelineID/gameObjectID/gameObjectName/audioObjectName/instigatorPipelineID/busID/busGUID/spatializationMode/x/y/z/spread/focus/channelConfig/effectClassID/effectIndex/metadata/rmsMeter/peakMeter), timeout: float=5.0. "
             "Returns dict {'return': [{audio object fields}, ...]}. For Reflect/Pathing detection request effectPluginName, instigatorPipelineID, rmsMeter, peakMeter."
     ),
     "profiler_get_busses" : Command(
