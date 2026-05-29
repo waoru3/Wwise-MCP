@@ -1,6 +1,6 @@
 """Tests for wwise_python_lib.remote_get_connection_status (TASK-81.11).
 
-Pins the WAAPI URI, no-args call shape, response passthrough, None->{} coercion,
+Pins the WAAPI URI, no-args call shape, response passthrough, None->raise,
 error wrapping, WwisePyLibError passthrough, the wwise_mcp shim forwarding, and
 the COMMANDS docstring (incl. the userInterface-only restriction note).
 """

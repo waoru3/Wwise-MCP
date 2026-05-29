@@ -2,7 +2,7 @@
 
 Validates the WAAPI getRTPCs wrapper: URI, args shape (time only,
 no options field), timeout passthrough, time validation, error-details
-dict (incl timeout), None-response coercion to {"return": []}, shim
+dict (incl timeout), None-response raising WwiseApiError, shim
 delegation, and COMMANDS registration.
 """
 from __future__ import annotations

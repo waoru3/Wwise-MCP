@@ -2,8 +2,8 @@
 
 Validates the WAAPI getBusses wrapper: URI, args/options shape,
 return_fields whitelist (12 schema-exact fields), bus_pipeline_id bounds,
-error-details dict (incl timeout), None-response coercion to
-{"return": []}, shim delegation, and COMMANDS registration.
+error-details dict (incl timeout), None-response raising
+WwiseApiError, shim delegation, and COMMANDS registration.
 """
 from __future__ import annotations
 

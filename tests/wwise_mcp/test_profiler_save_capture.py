@@ -2,7 +2,7 @@
 
 Pins the WAAPI URI (saveCapture, NOT saveProfilerCapture - a common
 mis-naming in older docs), the argument key ("file"), file_path validation,
-response passthrough (None coerced to empty dict), error wrapping details,
+response passthrough (None raises WwiseApiError), error wrapping details,
 WwisePyLibError passthrough, the wwise_mcp shim forwarding, and the
 COMMANDS docstring URI correction.
 """
@@ -137,7 +137,7 @@ def test_shim_forwards_to_library(mock_waapi):
     assert mock_waapi.call_args.args[1] == {"file": r"C:/tmp/capture.prof"}
     # Default timeout flows through the shim to the WAAPI call.
     assert mock_waapi.call_args.kwargs.get("timeout") == 5.0
-    # Default mock_waapi returns {}, library coerces None->{} but {} stays {}.
+    # Default mock_waapi returns {}; an empty-dict success passes through unchanged.
     assert result == {}
 
 

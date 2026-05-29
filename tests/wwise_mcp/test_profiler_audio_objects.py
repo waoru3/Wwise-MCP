@@ -2,7 +2,7 @@
 
 Validates the WAAPI getAudioObjects wrapper: URI, args/options shape,
 return_fields whitelist (22 schema-exact fields), bus_pipeline_id bounds,
-error-details dict, None-response coercion to {"return": []}, shim
+error-details dict, None-response raising WwiseApiError, shim
 delegation, and COMMANDS registration.
 """
 from __future__ import annotations
