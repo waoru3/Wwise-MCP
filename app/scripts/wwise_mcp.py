@@ -1011,6 +1011,14 @@ def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
         logger.exception("Failed to save profiler capture.")
         raise
 
+
+def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
+    try:
+        return WwisePythonLibrary.remote_get_connection_status(timeout=timeout)
+    except Exception:
+        logger.exception("Failed to get remote connection status.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1402,6 +1410,13 @@ COMMANDS: dict[str, Command] = {
         doc="Save the current profiler capture to a .prof file via ak.wwise.core.profiler.saveCapture (NOT saveProfilerCapture). "
             "Args: file_path: str (absolute path the Wwise Authoring process can write to, typically ending .prof), timeout: float = 5.0. "
             "Returns empty dict on success."
+    ),
+    "remote_get_connection_status" : Command(
+        func=remote_get_connection_status,
+        doc="Retrieve the Wwise Authoring -> Sound Engine remote connection status via ak.wwise.core.remote.getConnectionStatus. "
+            "RESTRICTION: ak.wwise.core.remote.* is userInterface-only (NOT commandLine) - requires a running Wwise Authoring instance WITH a UI context; a headless WwiseConsole waapi-server cannot serve it. "
+            "Args: None. Returns dict {'isConnected': bool, 'status': str, 'console': {...} (present only when connected)}. "
+            "Use as a gate: assert isConnected before profiler_start_capture so the WAAPI session is the capture authority (avoids the WAAPI-vs-UI stream divergence from TASK-81.12 R2)."
     ),
 }
 

@@ -3591,3 +3591,41 @@ def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
             details={"error_type": type(e).__name__, "file_path": file_path, "timeout": timeout},
         )
     return response if response is not None else {}
+
+
+def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
+    """
+    Retrieve the Wwise Authoring -> Sound Engine remote connection status.
+
+    No args. Returns isConnected + status, plus an optional "console" block
+    describing the connected remote process.
+
+    Endpoint restriction
+    --------------------
+    ak.wwise.core.remote.* is restrict:["userInterface"] (NOT commandLine).
+    Requires a running Wwise Authoring instance WITH a UI context; a headless
+    WwiseConsole waapi-server cannot serve this endpoint.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response:
+        {"isConnected": bool, "status": str,
+         "console": {"name", "platform", "customPlatform", "host", "appName"}}.
+        The "console" block is present only when connected.
+    """
+    try:
+        response = waapi_call(
+            "ak.wwise.core.remote.getConnectionStatus",
+            {},
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get remote connection status: {e}",
+            operation="ak.wwise.core.remote.getConnectionStatus",
+            details={"error_type": type(e).__name__, "timeout": timeout},
+        )
+    return response if response is not None else {}
