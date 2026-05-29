@@ -1027,6 +1027,14 @@ def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
         logger.exception("Failed to get available consoles.")
         raise
 
+
+def remote_connect(host: str, *, app_name: str | None = None, command_port: int | None = None, timeout: float = 5.0) -> dict:
+    try:
+        return WwisePythonLibrary.remote_connect(host, app_name=app_name, command_port=command_port, timeout=timeout)
+    except Exception:
+        logger.exception("Failed to connect to remote sound engine.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1432,6 +1440,15 @@ COMMANDS: dict[str, Command] = {
             "RESTRICTION: ak.wwise.core.remote.* is userInterface-only (NOT commandLine) - requires Authoring with a UI context, not a headless waapi-server. "
             "Args: None. Returns dict {'consoles': [{'name','platform','customPlatform','host','appName','commandPort'}, ...]}. "
             "Feed host + appName (+ commandPort) into remote_connect to target a specific instance."
+    ),
+    "remote_connect" : Command(
+        func=remote_connect,
+        doc="Connect Wwise Authoring to a running Sound Engine instance or a saved .prof capture file. "
+            "RESTRICTION: ak.wwise.core.remote.* is userInterface-only (NOT commandLine) - requires a running Wwise Authoring instance WITH a UI context; a headless waapi-server cannot serve it. "
+            "Args: host: str (computer name / IPv4 / IP:PORT / full path to a .prof file; '127.0.0.1' for localhost), "
+            "app_name: str|None=None (Application Name from remote_get_available_consoles to pick one of several instances), "
+            "command_port: int|None=None (uint16; requires app_name). The schema's 'notificationPort' arg is 'Unused' and is not exposed. "
+            "Returns empty dict on success."
     ),
 }
 

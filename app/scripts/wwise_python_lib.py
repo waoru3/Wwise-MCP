@@ -3665,3 +3665,86 @@ def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
     return response if response is not None else {"consoles": []}
+
+
+def remote_connect(
+    host: str,
+    *,
+    app_name: str | None = None,
+    command_port: int | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Connect Wwise Authoring to a running Sound Engine instance or a saved
+    .prof capture file.
+
+    Parameters
+    ----------
+    host : str
+        Computer name, IPv4, IP:PORT pair, or a full path to a saved .prof
+        capture. Use "127.0.0.1" for localhost. (schema: required)
+    app_name : str | None
+        Application Name (from remote_get_available_consoles) used to select a
+        specific instance when more than one Sound Engine is running.
+    command_port : int | None
+        uint16 command port to disambiguate instances sharing an app_name. Per
+        the WAAPI schema, command_port requires app_name to also be set.
+    timeout : float
+        WAAPI reply timeout. Default 5.0s (a remote handshake can exceed the
+        WwiseSession 1.0s default).
+
+    Endpoint restriction
+    --------------------
+    userInterface-only (NOT commandLine; see remote_get_connection_status).
+    Requires Authoring with a UI context; not servable by a headless
+    waapi-server. The schema's "notificationPort" arg is documented "Unused"
+    and is intentionally NOT exposed by this wrapper.
+
+    Returns
+    -------
+    dict
+        Empty dict on success.
+    """
+    if not isinstance(host, str) or not host.strip():
+        raise WwiseValidationError("host must be a non-empty string")
+    if app_name is not None and not isinstance(app_name, str):
+        raise WwiseValidationError("app_name must be a string when provided")
+    if command_port is not None:
+        if isinstance(command_port, bool) or not isinstance(command_port, int):
+            raise WwiseValidationError("command_port must be an int")
+        if command_port < 0 or command_port > 0xFFFF:
+            raise WwiseValidationError(
+                f"command_port must be a uint16 (0..65535), got {command_port}"
+            )
+        if app_name is None:
+            raise WwiseValidationError(
+                "command_port requires app_name (schema: when using commandPort you must also provide appName)"
+            )
+
+    args: dict = {"host": host}
+    if app_name is not None:
+        args["appName"] = app_name
+    if command_port is not None:
+        args["commandPort"] = command_port
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.remote.connect",
+            args,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to connect to remote sound engine: {e}",
+            operation="ak.wwise.core.remote.connect",
+            details={
+                "error_type": type(e).__name__,
+                "host": host,
+                "app_name": app_name,
+                "command_port": command_port,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {}
