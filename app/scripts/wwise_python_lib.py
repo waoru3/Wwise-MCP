@@ -1554,6 +1554,11 @@ def set_property(
             "property": property_name,
             "value": value})
 
+
+_OBJECT_SET_NAME_CONFLICT_MODES = frozenset({"fail", "rename", "replace", "merge"})
+_OBJECT_SET_LIST_MODES = frozenset({"replaceAll", "append"})
+
+
 def add_effect_to_object(
     object_path: str,
     effect_ref: str,
@@ -1631,9 +1636,6 @@ def add_effect_to_object(
         )
 
     return response
-
-
-_OBJECT_SET_NAME_CONFLICT_MODES = frozenset({"fail", "rename", "replace", "merge"})
 
 
 def create_effect_share_set(
@@ -2155,7 +2157,6 @@ def assign_child_to_blend_track(
 
     return waapi_call("ak.wwise.core.blendContainer.addAssignment", args)
 
-_OBJECT_SET_LIST_MODES = frozenset({"replaceAll", "append"})
 
 def assign_child_to_random_sequence_playlist(
     container_path: str,
