@@ -49,6 +49,7 @@ def test_error_wrap_details(mock_waapi):
         wwise_python_lib.remote_get_available_consoles(timeout=9.0)
     assert excinfo.value.operation == URI
     assert excinfo.value.details["timeout"] == 9.0
+    assert excinfo.value.details["error_type"] == "RuntimeError"
 
 
 def test_wwise_pylib_error_passthrough(mock_waapi):
