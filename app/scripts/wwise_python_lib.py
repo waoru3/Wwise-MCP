@@ -3155,8 +3155,6 @@ _VOICE_RETURN_FIELDS = frozenset({
     "isStarted", "isVirtual", "isForcedVirtual",
 })
 
-_MAX_BUS_CHAIN_DEPTH = 64
-
 
 def profiler_get_voices(
     time: int | str = "capture",
@@ -3283,11 +3281,6 @@ def profiler_get_voice_contributions(
     if busses_pipeline_id is not None:
         if not isinstance(busses_pipeline_id, list):
             raise WwiseValidationError("busses_pipeline_id must be a list when provided")
-        if len(busses_pipeline_id) > _MAX_BUS_CHAIN_DEPTH:
-            raise WwiseValidationError(
-                f"busses_pipeline_id length {len(busses_pipeline_id)} exceeds defensive cap "
-                f"{_MAX_BUS_CHAIN_DEPTH} (bus chains are not expected to be longer than this in practice)"
-            )
         for i, b in enumerate(busses_pipeline_id):
             _validate_uint32(b, f"busses_pipeline_id[{i}]")
 
