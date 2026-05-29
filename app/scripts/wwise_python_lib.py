@@ -3748,3 +3748,38 @@ def remote_connect(
             },
         )
     return response if response is not None else {}
+
+
+def remote_disconnect(*, timeout: float = 5.0) -> dict:
+    """
+    Disconnect Wwise Authoring from the connected Sound Engine instance.
+
+    No args. Distinct from WwiseSession.disconnect_from_wwise_client(), which
+    closes the WAAPI/WAMP socket between this library and Authoring; this call
+    severs Authoring's *remote* connection to the game/Sound Engine while the
+    WAAPI socket stays open.
+
+    Endpoint restriction
+    --------------------
+    userInterface-only (NOT commandLine; see remote_get_connection_status).
+
+    Returns
+    -------
+    dict
+        Empty dict on success.
+    """
+    try:
+        response = waapi_call(
+            "ak.wwise.core.remote.disconnect",
+            {},
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to disconnect from remote sound engine: {e}",
+            operation="ak.wwise.core.remote.disconnect",
+            details={"error_type": type(e).__name__, "timeout": timeout},
+        )
+    return response if response is not None else {}

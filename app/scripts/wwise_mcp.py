@@ -1035,6 +1035,14 @@ def remote_connect(host: str, *, app_name: str | None = None, command_port: int 
         logger.exception("Failed to connect to remote sound engine.")
         raise
 
+
+def remote_disconnect(*, timeout: float = 5.0) -> dict:
+    try:
+        return WwisePythonLibrary.remote_disconnect(timeout=timeout)
+    except Exception:
+        logger.exception("Failed to disconnect from remote sound engine.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1449,6 +1457,13 @@ COMMANDS: dict[str, Command] = {
             "app_name: str|None=None (Application Name from remote_get_available_consoles to pick one of several instances), "
             "command_port: int|None=None (uint16; requires app_name). The schema's 'notificationPort' arg is 'Unused' and is not exposed. "
             "Returns empty dict on success."
+    ),
+    "remote_disconnect" : Command(
+        func=remote_disconnect,
+        doc="Disconnect Wwise Authoring from the connected Sound Engine. "
+            "RESTRICTION: ak.wwise.core.remote.* is userInterface-only (NOT commandLine). Distinct from disconnect_from_wwise_client (which closes the WAAPI/WAMP socket); "
+            "this severs Authoring's remote connection while the WAAPI socket stays open. "
+            "Args: None. Returns empty dict on success."
     ),
 }
 
