@@ -105,6 +105,18 @@ It is still under active development and should not be used with Wwise projects 
 - Be sure you are using python version 3.13+
 - More info can be found [here](https://github.com/BilkentAudio/Wwise-MCP/blob/main/app/README.md)
 
+## Testing
+
+Unit tests live in `tests/wwise_mcp/` and mock the WAAPI dispatch (`waapi_call`), so they run without a live Wwise Authoring instance. `tests/wwise_mcp/conftest.py` adds `app/scripts/` to `sys.path` relative to the repo root.
+
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements-dev.txt   # Linux/macOS: .venv/bin/python
+.venv/Scripts/python -m pytest -q
+```
+
+`requirements.txt` lists runtime dependencies (`fastmcp`, `anyio`, `waapi-client`); `requirements-dev.txt` adds the test stack (`pytest`, `pytest-mock`).
+
 # License
 Apache 
 

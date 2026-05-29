@@ -1,0 +1,7 @@
+# Runtime dependencies for the Wwise-MCP server (app/scripts/).
+# fastmcp     - MCP server framework used by wwise_mcp.py
+# anyio       - async runtime pulled in by wwise_mcp.py
+# waapi-client - provides the `waapi` module (WaapiClient) used by wwise_session.py
+fastmcp
+anyio
+waapi-client
