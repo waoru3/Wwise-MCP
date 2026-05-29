@@ -3614,6 +3614,7 @@ def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
          "console": {"name", "platform", "customPlatform", "host", "appName"}}.
         The "console" block is present only when connected.
     """
+    timeout = _validate_timeout_seconds(timeout)
     try:
         response = waapi_call(
             "ak.wwise.core.remote.getConnectionStatus",
@@ -3650,6 +3651,7 @@ def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
     dict
         Raw WAAPI response: {"consoles": [{...console}, ...]}.
     """
+    timeout = _validate_timeout_seconds(timeout)
     try:
         response = waapi_call(
             "ak.wwise.core.remote.getAvailableConsoles",
@@ -3705,10 +3707,14 @@ def remote_connect(
     dict
         Empty dict on success.
     """
+    timeout = _validate_timeout_seconds(timeout)
     if not isinstance(host, str) or not host.strip():
         raise WwiseValidationError("host must be a non-empty string")
-    if app_name is not None and not isinstance(app_name, str):
-        raise WwiseValidationError("app_name must be a string when provided")
+    host = host.strip()
+    if app_name is not None:
+        if not isinstance(app_name, str) or not app_name.strip():
+            raise WwiseValidationError("app_name must be a non-empty string when provided")
+        app_name = app_name.strip()
     if command_port is not None:
         if isinstance(command_port, bool) or not isinstance(command_port, int):
             raise WwiseValidationError("command_port must be an int")
@@ -3768,6 +3774,7 @@ def remote_disconnect(*, timeout: float = 5.0) -> dict:
     dict
         Empty dict on success.
     """
+    timeout = _validate_timeout_seconds(timeout)
     try:
         response = waapi_call(
             "ak.wwise.core.remote.disconnect",
