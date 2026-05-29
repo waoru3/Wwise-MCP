@@ -2155,7 +2155,7 @@ def assign_child_to_random_sequence_playlist(
         raise ValueError("child_paths must be a non-empty list of Wwise object paths or GUIDs.")
 
     if list_mode not in _OBJECT_SET_LIST_MODES:
-        raise ValueError(
+        raise WwiseValidationError(
             f"list_mode must be one of {sorted(_OBJECT_SET_LIST_MODES)}, got {list_mode!r}"
         )
 
