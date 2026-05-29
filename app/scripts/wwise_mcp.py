@@ -1019,6 +1019,14 @@ def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
         logger.exception("Failed to get remote connection status.")
         raise
 
+
+def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
+    try:
+        return WwisePythonLibrary.remote_get_available_consoles(timeout=timeout)
+    except Exception:
+        logger.exception("Failed to get available consoles.")
+        raise
+
 #==============================================================================
 #                            Function Dictionary
 #==============================================================================
@@ -1417,6 +1425,13 @@ COMMANDS: dict[str, Command] = {
             "RESTRICTION: ak.wwise.core.remote.* is userInterface-only (NOT commandLine) - requires a running Wwise Authoring instance WITH a UI context; a headless WwiseConsole waapi-server cannot serve it. "
             "Args: None. Returns dict {'isConnected': bool, 'status': str, 'console': {...} (present only when connected)}. "
             "Use as a gate: assert isConnected before profiler_start_capture so the WAAPI session is the capture authority (avoids the WAAPI-vs-UI stream divergence from TASK-81.12 R2)."
+    ),
+    "remote_get_available_consoles" : Command(
+        func=remote_get_available_consoles,
+        doc="List all consoles (Sound Engine instances) available to connect to (via ak.wwise.core.remote.getAvailableConsoles). "
+            "RESTRICTION: ak.wwise.core.remote.* is userInterface-only (NOT commandLine) - requires Authoring with a UI context, not a headless waapi-server. "
+            "Args: None. Returns dict {'consoles': [{'name','platform','customPlatform','host','appName','commandPort'}, ...]}. "
+            "Feed host + appName (+ commandPort) into remote_connect to target a specific instance."
     ),
 }
 

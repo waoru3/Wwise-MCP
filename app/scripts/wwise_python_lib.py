@@ -3629,3 +3629,39 @@ def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
     return response if response is not None else {}
+
+
+def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
+    """
+    List all consoles (Sound Engine instances) available to connect to.
+
+    No args. Each console carries name/platform/customPlatform/host/appName/
+    commandPort - feed host + appName (+ commandPort) into remote_connect to
+    target a specific instance.
+
+    Endpoint restriction
+    --------------------
+    ak.wwise.core.remote.* is restrict:["userInterface"] (NOT commandLine), as
+    for remote_get_connection_status. Requires Authoring with a UI context; not
+    servable by a headless waapi-server.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"consoles": [{...console}, ...]}.
+    """
+    try:
+        response = waapi_call(
+            "ak.wwise.core.remote.getAvailableConsoles",
+            {},
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get available consoles: {e}",
+            operation="ak.wwise.core.remote.getAvailableConsoles",
+            details={"error_type": type(e).__name__, "timeout": timeout},
+        )
+    return response if response is not None else {"consoles": []}
