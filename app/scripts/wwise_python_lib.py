@@ -2887,3 +2887,707 @@ def toggle_layout(request_layout : str)->dict:
         "They are case sensitive.")
     
     return waapi_call("ak.wwise.ui.layout.switchLayout", {"name": request_layout})
+
+
+# ==============================================================================
+#                          Profiler capture & inspection
+# ==============================================================================
+#
+# Wraps ak.wwise.core.profiler.* endpoints. ALL 10 endpoints (capture control
+# AND readers) are restricted to userInterface / commandLine contexts per the
+# local WAAPI JSON schemas under
+# C:/Audiokinetic/Wwise_2024.1.13.9056/Authoring/Data/Schemas/WAAPI/. They
+# require Wwise Authoring to be running (the headless `WwiseConsole.exe
+# waapi-server` form is the commandLine context that satisfies the schema;
+# pure WAAPI-only without an Authoring instance does not). "Visible UI" in
+# the docstrings below is shorthand for "Authoring process with a
+# userInterface or commandLine context"; it does not strictly require a
+# graphical window.
+#
+# Reader endpoints (getVoices, getVoiceContributions, getAudioObjects, etc.)
+# use a 5.0s waapi_call timeout because the live capture pipeline can stall
+# the WAAPI reply briefly when the session is hot.
+#
+# Session side effect: profiler_enable_data overrides the user's Profiler
+# data-type settings for the duration of the Authoring session. Restore the
+# pre-probe values at the end of Task 12 cleanup (call profiler_enable_data
+# again with the prior settings, or just disable voiceInspector / audioObjects
+# explicitly after capture).
+
+_PROFILER_CURSORS = frozenset({"user", "capture"})
+
+
+def _validate_timeout_seconds(timeout: float, field_name: str = "timeout") -> float:
+    """Reject zero, negative, non-finite, or non-numeric timeout values.
+    WAAPI calls with timeout <= 0 fail immediately; non-finite (inf, nan) causes
+    undefined wait behavior in the dispatcher."""
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+        raise WwiseValidationError(
+            f"{field_name} must be a number (seconds), got {type(timeout).__name__}"
+        )
+    timeout_f = float(timeout)
+    if not math.isfinite(timeout_f) or timeout_f <= 0:
+        raise WwiseValidationError(
+            f"{field_name} must be a finite number > 0, got {timeout!r}"
+        )
+    return timeout_f
+
+
+def _validate_profiler_time(time: int | str) -> None:
+    """Reject anything that is not a non-negative int or 'user' / 'capture'."""
+    if isinstance(time, bool):
+        raise WwiseValidationError(
+            f"time must be int (ms) or one of {sorted(_PROFILER_CURSORS)}, got bool"
+        )
+    if isinstance(time, str):
+        if time not in _PROFILER_CURSORS:
+            raise WwiseValidationError(
+                f"time string must be one of {sorted(_PROFILER_CURSORS)}, got {time!r}"
+            )
+        return
+    if not isinstance(time, int):
+        raise WwiseValidationError(
+            f"time must be int (ms) or a profiler cursor string, got {type(time).__name__}"
+        )
+    if time < 0:
+        raise WwiseValidationError(f"time must be >= 0 ms, got {time}")
+
+
+def profiler_start_capture() -> dict:
+    """
+    Start the Wwise Profiler capture and return the capture cursor time in ms.
+
+    Preconditions
+    -------------
+    Wwise Authoring must be running with a UI (this endpoint is
+    userInterface/commandLine restricted per the local WAAPI schema).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": <int ms>}.
+    """
+    try:
+        response = waapi_call("ak.wwise.core.profiler.startCapture", {})
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to start profiler capture: {e}",
+            operation="ak.wwise.core.profiler.startCapture",
+            details={"error_type": type(e).__name__},
+        )
+    return response if response is not None else {}
+
+
+def profiler_stop_capture() -> dict:
+    """
+    Stop the Wwise Profiler capture and return the cursor time at the end of
+    the capture in milliseconds.
+
+    Behavior when no capture is active is not specified by the WAAPI schema;
+    treat it as undefined and verify in smoke (Task 1 step 4).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": <int ms>}.
+    """
+    try:
+        response = waapi_call("ak.wwise.core.profiler.stopCapture", {})
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to stop profiler capture: {e}",
+            operation="ak.wwise.core.profiler.stopCapture",
+            details={"error_type": type(e).__name__},
+        )
+    return response if response is not None else {}
+
+
+def profiler_get_cursor_time(cursor: str = "capture") -> dict:
+    """
+    Return the current position of the specified profiler time cursor in ms.
+
+    Parameters
+    ----------
+    cursor : str
+        'user' (the User Time Cursor) or 'capture' (the Capture Time Cursor).
+        Defaults to 'capture' for the common "what's playing right now" case.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": <int ms>}.
+    """
+    if not isinstance(cursor, str) or cursor not in _PROFILER_CURSORS:
+        raise WwiseValidationError(
+            f"cursor must be one of {sorted(_PROFILER_CURSORS)}, got {cursor!r}"
+        )
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getCursorTime",
+            {"cursor": cursor},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler cursor time: {e}",
+            operation="ak.wwise.core.profiler.getCursorTime",
+            details={"error_type": type(e).__name__, "cursor": cursor},
+        )
+    return response if response is not None else {}
+
+
+_PROFILER_DATA_TYPES = frozenset({
+    "cpu", "memory", "stream", "voices", "listener",
+    "obstructionOcclusion", "markersNotification", "soundbanks",
+    "loadedMedia", "preparedObjects", "preparedGameSyncs",
+    "interactiveMusic", "streamingDevice", "meter", "auxiliarySends",
+    "apiCalls", "spatialAudio", "spatialAudioRaycasting",
+    "voiceInspector", "audioObjects", "gameSyncs",
+})
+
+
+def profiler_enable_data(data_types: list) -> dict:
+    """
+    Enable or disable specific profiler data type captures, overriding the
+    user's Profiler preferences for the current session.
+
+    Each item is either a bare string (enable defaults to True) or a
+    (dataType, enable_bool) tuple/list.
+
+    Critical
+    --------
+    'voiceInspector' must be in this list before any
+    profiler_get_voice_contributions() call returns useful data — the local
+    WAAPI schema for enableProfilerData carries an example titled
+    "Enabling profiler data required for getVoiceContributions" that pins
+    this dependency.
+
+    Parameters
+    ----------
+    data_types : list[str | tuple[str, bool] | list]
+        Items from the profilerDataType enum (see _PROFILER_DATA_TYPES).
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response (empty dict on success).
+    """
+    if not isinstance(data_types, list) or not data_types:
+        raise WwiseValidationError("data_types must be a non-empty list")
+
+    payload: list[dict] = []
+    for i, item in enumerate(data_types):
+        if isinstance(item, str):
+            dt, enable = item, None
+        elif isinstance(item, (tuple, list)) and len(item) == 2:
+            dt, enable = item[0], item[1]
+            if not isinstance(dt, str):
+                raise WwiseValidationError(
+                    f"data_types[{i}] first element must be str, got {type(dt).__name__}"
+                )
+            if not isinstance(enable, bool):
+                raise WwiseValidationError(
+                    f"data_types[{i}] second element must be bool, got {type(enable).__name__}"
+                )
+        else:
+            raise WwiseValidationError(
+                f"data_types[{i}] must be str or (str, bool) pair, got {type(item).__name__}"
+            )
+        if dt not in _PROFILER_DATA_TYPES:
+            raise WwiseValidationError(
+                f"data_types[{i}] unknown dataType {dt!r}; valid: {sorted(_PROFILER_DATA_TYPES)}"
+            )
+        entry: dict = {"dataType": dt}
+        if enable is not None:
+            entry["enable"] = enable
+        payload.append(entry)
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.enableProfilerData",
+            {"dataTypes": payload},
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to enable profiler data: {e}",
+            operation="ak.wwise.core.profiler.enableProfilerData",
+            details={"error_type": type(e).__name__, "data_types": payload},
+        )
+    return response if response is not None else {}
+
+
+_VOICE_RETURN_FIELDS = frozenset({
+    "pipelineID", "playingID", "soundID",
+    "gameObjectID", "gameObjectName",
+    "objectGUID", "objectName",
+    "playTargetID", "playTargetGUID", "playTargetName",
+    "baseVolume", "gameAuxSendVolume", "envelope", "normalizationGain",
+    "lowPassFilter", "highPassFilter", "priority",
+    "isStarted", "isVirtual", "isForcedVirtual",
+})
+
+_MAX_BUS_CHAIN_DEPTH = 64
+
+
+def profiler_get_voices(
+    time: int | str = "capture",
+    *,
+    voice_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve voices active at a specific profiler capture time.
+
+    Parameters
+    ----------
+    time : int | str
+        Integer ms or one of 'user' / 'capture'. Defaults to 'capture'.
+    voice_pipeline_id : int | None
+        Optional uint32 to restrict the response to one voice.
+    return_fields : list[str] | None
+        Subset of _VOICE_RETURN_FIELDS. WAAPI defaults to pipelineID +
+        gameObjectID + objectGUID when omitted.
+    timeout : float
+        WAAPI reply timeout. Default 5.0s (5x global default) because
+        getVoices can pause briefly when the session is hot.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": [{...voice}, ...]}.
+    """
+    timeout = _validate_timeout_seconds(timeout)
+    _validate_profiler_time(time)
+
+    if voice_pipeline_id is not None:
+        if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
+            raise WwiseValidationError("voice_pipeline_id must be an int")
+        if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
+            raise WwiseValidationError(
+                f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
+            )
+
+    if return_fields is not None:
+        if not isinstance(return_fields, list) or not return_fields:
+            raise WwiseValidationError("return_fields must be a non-empty list when provided")
+        bad = [f for f in return_fields if not isinstance(f, str) or f not in _VOICE_RETURN_FIELDS]
+        if bad:
+            raise WwiseValidationError(
+                f"return_fields contains unknown values {bad}; "
+                f"valid: {sorted(_VOICE_RETURN_FIELDS)}"
+            )
+
+    args: dict = {"time": time}
+    if voice_pipeline_id is not None:
+        args["voicePipelineID"] = voice_pipeline_id
+
+    options = {"return": return_fields} if return_fields else None
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getVoices",
+            args,
+            options=options,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler voices: {e}",
+            operation="ak.wwise.core.profiler.getVoices",
+            details={
+                "error_type": type(e).__name__,
+                "time": time,
+                "voice_pipeline_id": voice_pipeline_id,
+                "return_fields": return_fields,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {"return": []}
+
+
+def profiler_get_voice_contributions(
+    voice_pipeline_id: int,
+    *,
+    time: int | str = "capture",
+    busses_pipeline_id: list[int] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve the contribution tree (volume / LPF / HPF) for one voice path.
+
+    Preconditions
+    -------------
+    profiler_enable_data must have included 'voiceInspector' for this
+    session. Without it, the returned tree is empty.
+
+    Parameters
+    ----------
+    voice_pipeline_id : int
+        Pipeline ID of the voice. Obtain from profiler_get_voices.
+        Validation: int + non-negative + capped at 0xFFFFFFFF. The local
+        schema (waapi_definitions.json:pipelineID) only requires
+        `number >= 0`, but Wwise's internal AkPipelineID type is uint32,
+        so the wrapper enforces uint32 as a defensive deviation. Callers
+        who need to bypass the cap (e.g. a hypothetical Wwise version
+        that widens the type) should call waapi_call() directly.
+    time : int | str
+        Integer ms or one of 'user' / 'capture'. Defaults to 'capture'.
+    busses_pipeline_id : list[int] | None
+        Optional bus pipeline-ID chain identifying a wet path. Pass `[]`
+        explicitly to request the dry path (schema:
+        `ak.wwise.core.profiler.getVoiceContributions.json` describes empty array as the dry-path
+        default). Omitting (`None`) leaves the field out of the args dict;
+        WAAPI's behavior with an absent `bussesPipelineID` is not
+        documented to equal the empty-array case, so callers that mean
+        "dry path" should pass `[]` rather than rely on omission.
+        Each entry has the same uint32 cap as voice_pipeline_id (same
+        defensive rationale; same escape hatch).
+    timeout : float
+        WAAPI reply timeout. Default 5.0s.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response:
+        {"return": {"volume": <db>, "LPF": <n>, "HPF": <n>,
+                    "objects": [<voiceContributionsObject>, ...]}}.
+        Each voiceContributionsObject has: name, volume, LPF, HPF,
+        optional index (per-emitter ray ID), optional children (recursive),
+        optional parameters[{propertyType, reason, driver, driverValue, value}].
+    """
+    timeout = _validate_timeout_seconds(timeout)
+    if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
+        raise WwiseValidationError("voice_pipeline_id must be an int")
+    if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
+        raise WwiseValidationError(
+            f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
+        )
+
+    _validate_profiler_time(time)
+
+    if busses_pipeline_id is not None:
+        if not isinstance(busses_pipeline_id, list):
+            raise WwiseValidationError("busses_pipeline_id must be a list when provided")
+        if len(busses_pipeline_id) > _MAX_BUS_CHAIN_DEPTH:
+            raise WwiseValidationError(
+                f"busses_pipeline_id length {len(busses_pipeline_id)} exceeds defensive cap "
+                f"{_MAX_BUS_CHAIN_DEPTH} (bus chains are not expected to be longer than this in practice)"
+            )
+        for i, b in enumerate(busses_pipeline_id):
+            if isinstance(b, bool) or not isinstance(b, int):
+                raise WwiseValidationError(
+                    f"busses_pipeline_id[{i}] must be int, got {type(b).__name__}"
+                )
+            if b < 0 or b > 0xFFFFFFFF:
+                raise WwiseValidationError(
+                    f"busses_pipeline_id[{i}] must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {b}"
+                )
+
+    args: dict = {"voicePipelineID": voice_pipeline_id, "time": time}
+    if busses_pipeline_id is not None:
+        args["bussesPipelineID"] = busses_pipeline_id
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getVoiceContributions",
+            args,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get voice contributions: {e}",
+            operation="ak.wwise.core.profiler.getVoiceContributions",
+            details={
+                "error_type": type(e).__name__,
+                "voice_pipeline_id": voice_pipeline_id,
+                "time": time,
+                "busses_pipeline_id": busses_pipeline_id,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {}
+
+
+_AUDIO_OBJECT_RETURN_FIELDS = frozenset({
+    # Schema-exact: audioObjectReturnOptions enum at
+    # waapi_definitions.json:510-533. Do not subset - AC #2 requires
+    # zero schema drift.
+    "busName", "effectPluginName", "audioObjectID", "busPipelineID",
+    "gameObjectID", "gameObjectName", "audioObjectName",
+    "instigatorPipelineID", "busID", "busGUID",
+    "spatializationMode", "x", "y", "z",
+    "spread", "focus", "channelConfig",
+    "effectClassID", "effectIndex", "metadata",
+    "rmsMeter", "peakMeter",
+})
+
+
+def profiler_get_audio_objects(
+    time: int | str = "capture",
+    *,
+    bus_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve Audio Objects in the post-mix pipeline at a profiler capture time.
+
+    Candidate source for Effect plug-in name verification: the
+    'effectPluginName' field on each audio object is documented as the
+    plug-in identity (e.g. 'Steam Audio Spatializer'). rmsMeter /
+    peakMeter give non-silence signal in the same call.
+
+    Parameters
+    ----------
+    time : int | str
+        Integer ms or one of 'user' / 'capture'.
+    bus_pipeline_id : int | None
+        Optional uint32 to restrict the response to one bus's audio objects.
+    return_fields : list[str] | None
+        Subset of _AUDIO_OBJECT_RETURN_FIELDS. WAAPI default is
+        audioObjectID + busPipelineID + instigatorPipelineID + effectClassID.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": [{...audioObject}, ...]}.
+    """
+    timeout = _validate_timeout_seconds(timeout)
+    _validate_profiler_time(time)
+
+    if bus_pipeline_id is not None:
+        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
+            raise WwiseValidationError("bus_pipeline_id must be an int")
+        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
+            raise WwiseValidationError(
+                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
+            )
+
+    if return_fields is not None:
+        if not isinstance(return_fields, list) or not return_fields:
+            raise WwiseValidationError("return_fields must be a non-empty list when provided")
+        bad = [f for f in return_fields if not isinstance(f, str) or f not in _AUDIO_OBJECT_RETURN_FIELDS]
+        if bad:
+            raise WwiseValidationError(
+                f"return_fields contains unknown values {bad}; "
+                f"valid: {sorted(_AUDIO_OBJECT_RETURN_FIELDS)}"
+            )
+
+    args: dict = {"time": time}
+    if bus_pipeline_id is not None:
+        args["busPipelineID"] = bus_pipeline_id
+
+    options = {"return": return_fields} if return_fields else None
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getAudioObjects",
+            args,
+            options=options,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler audio objects: {e}",
+            operation="ak.wwise.core.profiler.getAudioObjects",
+            details={
+                "error_type": type(e).__name__,
+                "time": time,
+                "bus_pipeline_id": bus_pipeline_id,
+                "return_fields": return_fields,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {"return": []}
+
+
+_BUS_RETURN_FIELDS = frozenset({
+    "pipelineID", "mixBusID", "objectGUID", "objectName",
+    "gameObjectID", "gameObjectName", "deviceID",
+    "volume", "downstreamGain",
+    "voiceCount", "effectCount", "depth",
+})
+
+
+def profiler_get_busses(
+    time: int | str = "capture",
+    *,
+    bus_pipeline_id: int | None = None,
+    return_fields: list[str] | None = None,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve busses active at a specific profiler capture time.
+
+    Complementary signal to get_voices: inspect bus voiceCount /
+    effectCount / volume to cross-check that the expected bus routing is
+    active. Bus identity follows the project's bus hierarchy, not a
+    fixed "Reflections" bus - Steam Audio Spatializer routing keeps voices
+    on the same bus they would otherwise live on.
+
+    Parameters
+    ----------
+    time : int | str
+    bus_pipeline_id : int | None
+    return_fields : list[str] | None
+        Subset of _BUS_RETURN_FIELDS.
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response: {"return": [{...bus}, ...]}.
+    """
+    timeout = _validate_timeout_seconds(timeout)
+    _validate_profiler_time(time)
+
+    if bus_pipeline_id is not None:
+        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
+            raise WwiseValidationError("bus_pipeline_id must be an int")
+        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
+            raise WwiseValidationError(
+                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
+            )
+
+    if return_fields is not None:
+        if not isinstance(return_fields, list) or not return_fields:
+            raise WwiseValidationError("return_fields must be a non-empty list when provided")
+        bad = [f for f in return_fields if not isinstance(f, str) or f not in _BUS_RETURN_FIELDS]
+        if bad:
+            raise WwiseValidationError(
+                f"return_fields contains unknown values {bad}; "
+                f"valid: {sorted(_BUS_RETURN_FIELDS)}"
+            )
+
+    args: dict = {"time": time}
+    if bus_pipeline_id is not None:
+        args["busPipelineID"] = bus_pipeline_id
+
+    options = {"return": return_fields} if return_fields else None
+
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getBusses",
+            args,
+            options=options,
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler busses: {e}",
+            operation="ak.wwise.core.profiler.getBusses",
+            details={
+                "error_type": type(e).__name__,
+                "time": time,
+                "bus_pipeline_id": bus_pipeline_id,
+                "return_fields": return_fields,
+                "timeout": timeout,
+            },
+        )
+    return response if response is not None else {"return": []}
+
+
+def profiler_get_rtpcs(
+    time: int | str = "capture",
+    *,
+    timeout: float = 5.0,
+) -> dict:
+    """
+    Retrieve RTPCs (Game Parameters / LFO / Time / Envelope / MIDI params)
+    that are active at the given profiler capture time.
+
+    The endpoint takes no return-field whitelist - the response shape is
+    fixed by the WAAPI schema.
+
+    Parameters
+    ----------
+    time : int | str
+    timeout : float
+
+    Returns
+    -------
+    dict
+        Raw WAAPI response:
+        {"return": [{"id": guid, "name": str,
+                     "gameObjectId": int64,  # AK_INVALID_GAME_OBJECT for global
+                     "value": number}]}.
+    """
+    timeout = _validate_timeout_seconds(timeout)
+    _validate_profiler_time(time)
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.getRTPCs",
+            {"time": time},
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to get profiler RTPCs: {e}",
+            operation="ak.wwise.core.profiler.getRTPCs",
+            details={"error_type": type(e).__name__, "time": time, "timeout": timeout},
+        )
+    return response if response is not None else {"return": []}
+
+
+def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
+    """
+    Save the current profiler capture to a .prof file.
+
+    The WAAPI endpoint is ak.wwise.core.profiler.saveCapture (NOT
+    saveProfilerCapture - the latter is a common mis-naming from older docs).
+
+    Parameters
+    ----------
+    file_path : str
+        Absolute path the Wwise Authoring process can write to. Typically
+        ends with .prof.
+    timeout : float, optional
+        WAAPI call timeout in seconds. Defaults to 5.0; saving a .prof
+        capture is disk I/O that can realistically exceed the WwiseSession
+        default of 1.0s.
+
+    Returns
+    -------
+    dict
+        Empty dict on success.
+    """
+    timeout = _validate_timeout_seconds(timeout)
+    if not isinstance(file_path, str) or not file_path.strip():
+        raise WwiseValidationError("file_path must be a non-empty string")
+    file_path = file_path.strip()
+    if not Path(file_path).is_absolute():
+        raise WwiseValidationError(
+            f"file_path must be an absolute path (Wwise Authoring's cwd is its own install dir, not the caller's; relative paths land in unexpected locations or fail silently). Got {file_path!r}"
+        )
+    try:
+        response = waapi_call(
+            "ak.wwise.core.profiler.saveCapture",
+            {"file": file_path},
+            timeout=timeout,
+        )
+    except WwisePyLibError:
+        raise
+    except Exception as e:
+        raise WwiseApiError(
+            f"Failed to save profiler capture: {e}",
+            operation="ak.wwise.core.profiler.saveCapture",
+            details={"error_type": type(e).__name__, "file_path": file_path, "timeout": timeout},
+        )
+    return response if response is not None else {}
