@@ -51,13 +51,16 @@ def test_start_capture_returns_waapi_response(mock_waapi):
     assert result == {"return": 1234}
 
 
-def test_start_capture_normalizes_none_to_empty_dict(mock_waapi):
-    """Defensive: WAAPI sometimes returns None; wrapper normalises to {}."""
+def test_start_capture_raises_on_none(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
+    import pytest
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
 
-    assert wwise_python_lib.profiler_start_capture() == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_start_capture()
 
 
 # ---------------------------------------------------------------------------
@@ -92,12 +95,16 @@ def test_stop_capture_returns_waapi_response(mock_waapi):
     assert result == {"return": 5678}
 
 
-def test_stop_capture_normalizes_none_to_empty_dict(mock_waapi):
+def test_stop_capture_raises_on_none(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
+    import pytest
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
 
-    assert wwise_python_lib.profiler_stop_capture() == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_stop_capture()
 
 
 # ---------------------------------------------------------------------------

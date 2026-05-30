@@ -54,3 +54,31 @@ def test_invalid_filter_value_rejected_before_waapi_call(mock_waapi):
         )
 
     mock_waapi.assert_not_called()
+
+
+def test_include_in_soundbank_rejects_non_list_filter(mock_waapi):
+    import wwise_python_lib
+    from wwise_errors import WwiseValidationError
+
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.include_in_soundbank(
+            [r"\Events\Default Work Unit\Play_Footstep"],
+            r"\SoundBanks\Default Work Unit\Level1",
+            filter={"events"},
+        )
+
+    mock_waapi.assert_not_called()
+
+
+def test_include_in_soundbank_rejects_non_str_filter_element(mock_waapi):
+    import wwise_python_lib
+    from wwise_errors import WwiseValidationError
+
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.include_in_soundbank(
+            [r"\Events\Default Work Unit\Play_Footstep"],
+            r"\SoundBanks\Default Work Unit\Level1",
+            filter=[["events"]],
+        )
+
+    mock_waapi.assert_not_called()

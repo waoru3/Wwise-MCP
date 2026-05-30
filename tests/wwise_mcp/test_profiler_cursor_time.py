@@ -133,13 +133,15 @@ def test_get_cursor_time_returns_waapi_response(mock_waapi):
     assert result == {"return": 4321}
 
 
-def test_get_cursor_time_normalizes_none_to_empty_dict(mock_waapi):
-    """Defensive: WAAPI sometimes returns None; wrapper normalises to {}."""
+def test_get_cursor_time_raises_on_none(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
 
-    assert wwise_python_lib.profiler_get_cursor_time("capture") == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_get_cursor_time("capture")
 
 
 # ---------------------------------------------------------------------------

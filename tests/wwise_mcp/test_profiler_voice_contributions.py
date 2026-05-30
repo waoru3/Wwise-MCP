@@ -290,7 +290,7 @@ def test_rejects_bool_element_in_busses_pipeline_id(mock_waapi):
     from wwise_errors import WwiseValidationError
     import wwise_python_lib
 
-    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[0\] must be int"):
+    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[0\] must be an int"):
         wwise_python_lib.profiler_get_voice_contributions(42, busses_pipeline_id=[True, 5])
     _assert_not_called(mock_waapi)
 
@@ -301,7 +301,7 @@ def test_rejects_non_int_element_in_busses_pipeline_id(mock_waapi, bad_elem):
     from wwise_errors import WwiseValidationError
     import wwise_python_lib
 
-    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[1\] must be int"):
+    with pytest.raises(WwiseValidationError, match=r"busses_pipeline_id\[1\] must be an int"):
         wwise_python_lib.profiler_get_voice_contributions(
             42, busses_pipeline_id=[100, bad_elem]
         )
@@ -340,28 +340,15 @@ def test_accepts_uint32_boundary_elements_in_busses_pipeline_id(mock_waapi, good
     assert call.args[1]["bussesPipelineID"] == [good_elem]
 
 
-@pytest.mark.parametrize("size", [65, 100, 1000])
-def test_busses_pipeline_id_rejects_oversized_list(mock_waapi, size):
-    """Defensive cap: bus chains longer than 64 must be rejected before WAAPI dispatch."""
-    from wwise_errors import WwiseValidationError
+def test_voice_contributions_accepts_long_bus_chain(mock_waapi):
+    """WAAPI schema only requires non-negative pipeline IDs; no list-length cap."""
     import wwise_python_lib
 
-    with pytest.raises(WwiseValidationError, match="exceeds defensive cap"):
-        wwise_python_lib.profiler_get_voice_contributions(
-            42, busses_pipeline_id=[1] * size
-        )
-    _assert_not_called(mock_waapi)
-
-
-def test_busses_pipeline_id_accepts_max_length(mock_waapi):
-    """Length 64 (the cap) must pass validation and reach WAAPI."""
-    import wwise_python_lib
-
-    wwise_python_lib.profiler_get_voice_contributions(
-        42, busses_pipeline_id=[1] * 64
-    )
-    call = _find_call(mock_waapi, URI)
-    assert call.args[1]["bussesPipelineID"] == [1] * 64
+    mock_waapi.return_value = {"return": {}}
+    chain = list(range(65))  # > old cap of 64
+    result = wwise_python_lib.profiler_get_voice_contributions(1, busses_pipeline_id=chain)
+    assert result == {"return": {}}
+    assert mock_waapi.call_args.args[1]["bussesPipelineID"] == chain
 
 
 def test_validation_failure_aborts_before_waapi_call(mock_waapi):
@@ -444,13 +431,15 @@ def test_returns_waapi_response_object_passthrough(mock_waapi):
     assert result == payload
 
 
-def test_normalises_none_to_empty_dict(mock_waapi):
-    """Defensive: WAAPI sometimes returns None; wrapper normalises to {} (NOT {'return': []})."""
+def test_raises_on_none(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
 
-    assert wwise_python_lib.profiler_get_voice_contributions(42) == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_get_voice_contributions(42)
 
 
 # ---------------------------------------------------------------------------

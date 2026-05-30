@@ -185,6 +185,19 @@ def test_mcp_wrapper_delegates(mock_waapi):
     assert args["objects"][0]["children"][0]["classId"] == 46090754
 
 
+def test_create_source_plugin_rejects_leading_at(mock_waapi):
+    import wwise_python_lib
+
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.create_source_plugin(
+            parent_path="\\Actor-Mixer Hierarchy\\Default Work Unit\\Sound",
+            name="x",
+            class_id=1,
+            properties={"@Foo": 1},
+        )
+    assert mock_waapi.call_count == 0
+
+
 def test_command_registered_in_COMMANDS():
     """Wrapper must be registered in COMMANDS or MCP clients cannot call it."""
     import wwise_mcp

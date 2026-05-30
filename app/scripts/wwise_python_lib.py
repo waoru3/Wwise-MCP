@@ -37,6 +37,31 @@ def waapi_call(
     
     return WwiseSession.waapi_call(uri, args or {}, options=options, **kw)
 
+def _require_non_none(response, operation, **details):
+    """WAAPI failures raise (client uses allow_exception=True); a None here would
+    be an anomaly, so surface it as an error instead of a fake-empty success.
+    Mirrors the existing get_project_info (upstream) / create_effect_share_set
+    (fork-local) None->raise pattern."""
+    if response is None:
+        raise WwiseApiError(
+            f"WAAPI returned None for {operation}",
+            operation=operation,
+            details=details or None,
+        )
+    return response
+
+def _reject_at_prefixed(name):
+    """Property names are passed without the leading '@'; the wrapper adds it.
+    A caller-supplied '@' would produce '@@Name'. Also guards type, because the
+    create_* loops pass dict keys straight in (a non-str key would otherwise
+    blow up on .startswith with a raw AttributeError)."""
+    if not isinstance(name, str) or not name.strip():
+        raise WwiseValidationError(f"property name must be a non-empty string, got {name!r}")
+    if name.startswith("@"):
+        raise WwiseValidationError(
+            f"property name must not include the leading '@' (got {name!r}); the wrapper adds it"
+        )
+
 # ==============================================================================
 #                               Soundbank 
 # ==============================================================================
@@ -245,6 +270,13 @@ def include_in_soundbank(
     if filter is None:
         effective_filter = ["events", "structures"]
     else:
+        if not isinstance(filter, list):
+            raise WwiseValidationError(
+                f"filter must be a list when provided, got {type(filter).__name__}"
+            )
+        non_str = [f for f in filter if not isinstance(f, str)]
+        if non_str:
+            raise WwiseValidationError(f"filter entries must be strings, got non-str: {non_str!r}")
         bad = [f for f in filter if f not in _SETINCLUSIONS_FILTER_VALUES]
         if bad:
             raise WwiseValidationError(
@@ -1529,6 +1561,11 @@ def set_property(
             "property": property_name,
             "value": value})
 
+
+_OBJECT_SET_NAME_CONFLICT_MODES = frozenset({"fail", "rename", "replace", "merge"})
+_OBJECT_SET_LIST_MODES = frozenset({"replaceAll", "append"})
+
+
 def add_effect_to_object(
     object_path: str,
     effect_ref: str,
@@ -1608,9 +1645,6 @@ def add_effect_to_object(
     return response
 
 
-_OBJECT_SET_NAME_CONFLICT_MODES = frozenset({"fail", "rename", "replace", "merge"})
-
-
 def create_effect_share_set(
     parent_path: str,
     name: str,
@@ -1672,6 +1706,7 @@ def create_effect_share_set(
 
     child: dict = {"type": "Effect", "name": name, "classId": class_id}
     for prop_name, prop_value in (properties or {}).items():
+        _reject_at_prefixed(prop_name)
         child[f"@{prop_name}"] = prop_value
 
     args = {
@@ -1760,6 +1795,7 @@ def set_plugin_property(
         raise WwiseValidationError("object_path must be a non-empty string")
     if not isinstance(property_name, str) or not property_name.strip():
         raise WwiseValidationError("property_name must be a non-empty string")
+    _reject_at_prefixed(property_name)
     if value is None:
         raise WwiseValidationError("value cannot be None")
 
@@ -1785,7 +1821,7 @@ def set_plugin_property(
             },
         )
 
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.object.set")
 
 
 _RTPC_CURVE_SHAPES = frozenset({
@@ -1890,7 +1926,7 @@ def set_rtpc_curve(
             },
         )
 
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.object.set")
 
 
 def create_source_plugin(
@@ -1965,6 +2001,7 @@ def create_source_plugin(
     if language is not None:
         child["language"] = language
     for prop_name, prop_value in (properties or {}).items():
+        _reject_at_prefixed(prop_name)
         child[f"@{prop_name}"] = prop_value
 
     args = {
@@ -2127,7 +2164,6 @@ def assign_child_to_blend_track(
 
     return waapi_call("ak.wwise.core.blendContainer.addAssignment", args)
 
-_OBJECT_SET_LIST_MODES = frozenset({"replaceAll", "append"})
 
 def assign_child_to_random_sequence_playlist(
     container_path: str,
@@ -2142,7 +2178,7 @@ def assign_child_to_random_sequence_playlist(
         raise ValueError("child_paths must be a non-empty list of Wwise object paths or GUIDs.")
 
     if list_mode not in _OBJECT_SET_LIST_MODES:
-        raise ValueError(
+        raise WwiseValidationError(
             f"list_mode must be one of {sorted(_OBJECT_SET_LIST_MODES)}, got {list_mode!r}"
         )
 
@@ -2977,7 +3013,7 @@ def profiler_start_capture() -> dict:
             operation="ak.wwise.core.profiler.startCapture",
             details={"error_type": type(e).__name__},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.startCapture")
 
 
 def profiler_stop_capture() -> dict:
@@ -3003,7 +3039,7 @@ def profiler_stop_capture() -> dict:
             operation="ak.wwise.core.profiler.stopCapture",
             details={"error_type": type(e).__name__},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.stopCapture")
 
 
 def profiler_get_cursor_time(cursor: str = "capture") -> dict:
@@ -3038,7 +3074,7 @@ def profiler_get_cursor_time(cursor: str = "capture") -> dict:
             operation="ak.wwise.core.profiler.getCursorTime",
             details={"error_type": type(e).__name__, "cursor": cursor},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.getCursorTime")
 
 
 _PROFILER_DATA_TYPES = frozenset({
@@ -3120,7 +3156,29 @@ def profiler_enable_data(data_types: list) -> dict:
             operation="ak.wwise.core.profiler.enableProfilerData",
             details={"error_type": type(e).__name__, "data_types": payload},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.enableProfilerData")
+
+
+def _validate_uint32(value, name):
+    """Schema is number >= 0; we also reject > uint32 max as a defensive ceiling
+    because WAAPI pipeline IDs are 32-bit."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise WwiseValidationError(f"{name} must be an int")
+    if value < 0 or value > 0xFFFFFFFF:
+        raise WwiseValidationError(
+            f"{name} must be a non-negative pipeline ID "
+            f"(schema: number >= 0; defensive uint32 cap applied), got {value}"
+        )
+
+
+def _validate_return_fields(return_fields, allowed):
+    if not isinstance(return_fields, list) or not return_fields:
+        raise WwiseValidationError("return_fields must be a non-empty list when provided")
+    bad = [f for f in return_fields if not isinstance(f, str) or f not in allowed]
+    if bad:
+        raise WwiseValidationError(
+            f"return_fields contains unknown values {bad}; valid: {sorted(allowed)}"
+        )
 
 
 _VOICE_RETURN_FIELDS = frozenset({
@@ -3132,8 +3190,6 @@ _VOICE_RETURN_FIELDS = frozenset({
     "lowPassFilter", "highPassFilter", "priority",
     "isStarted", "isVirtual", "isForcedVirtual",
 })
-
-_MAX_BUS_CHAIN_DEPTH = 64
 
 
 def profiler_get_voices(
@@ -3168,22 +3224,10 @@ def profiler_get_voices(
     _validate_profiler_time(time)
 
     if voice_pipeline_id is not None:
-        if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
-            raise WwiseValidationError("voice_pipeline_id must be an int")
-        if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
-            raise WwiseValidationError(
-                f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
-            )
+        _validate_uint32(voice_pipeline_id, "voice_pipeline_id")
 
     if return_fields is not None:
-        if not isinstance(return_fields, list) or not return_fields:
-            raise WwiseValidationError("return_fields must be a non-empty list when provided")
-        bad = [f for f in return_fields if not isinstance(f, str) or f not in _VOICE_RETURN_FIELDS]
-        if bad:
-            raise WwiseValidationError(
-                f"return_fields contains unknown values {bad}; "
-                f"valid: {sorted(_VOICE_RETURN_FIELDS)}"
-            )
+        _validate_return_fields(return_fields, _VOICE_RETURN_FIELDS)
 
     args: dict = {"time": time}
     if voice_pipeline_id is not None:
@@ -3212,7 +3256,7 @@ def profiler_get_voices(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getVoices")
 
 
 def profiler_get_voice_contributions(
@@ -3266,32 +3310,15 @@ def profiler_get_voice_contributions(
         optional parameters[{propertyType, reason, driver, driverValue, value}].
     """
     timeout = _validate_timeout_seconds(timeout)
-    if isinstance(voice_pipeline_id, bool) or not isinstance(voice_pipeline_id, int):
-        raise WwiseValidationError("voice_pipeline_id must be an int")
-    if voice_pipeline_id < 0 or voice_pipeline_id > 0xFFFFFFFF:
-        raise WwiseValidationError(
-            f"voice_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {voice_pipeline_id}"
-        )
+    _validate_uint32(voice_pipeline_id, "voice_pipeline_id")
 
     _validate_profiler_time(time)
 
     if busses_pipeline_id is not None:
         if not isinstance(busses_pipeline_id, list):
             raise WwiseValidationError("busses_pipeline_id must be a list when provided")
-        if len(busses_pipeline_id) > _MAX_BUS_CHAIN_DEPTH:
-            raise WwiseValidationError(
-                f"busses_pipeline_id length {len(busses_pipeline_id)} exceeds defensive cap "
-                f"{_MAX_BUS_CHAIN_DEPTH} (bus chains are not expected to be longer than this in practice)"
-            )
         for i, b in enumerate(busses_pipeline_id):
-            if isinstance(b, bool) or not isinstance(b, int):
-                raise WwiseValidationError(
-                    f"busses_pipeline_id[{i}] must be int, got {type(b).__name__}"
-                )
-            if b < 0 or b > 0xFFFFFFFF:
-                raise WwiseValidationError(
-                    f"busses_pipeline_id[{i}] must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {b}"
-                )
+            _validate_uint32(b, f"busses_pipeline_id[{i}]")
 
     args: dict = {"voicePipelineID": voice_pipeline_id, "time": time}
     if busses_pipeline_id is not None:
@@ -3317,7 +3344,7 @@ def profiler_get_voice_contributions(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.getVoiceContributions")
 
 
 _AUDIO_OBJECT_RETURN_FIELDS = frozenset({
@@ -3368,22 +3395,10 @@ def profiler_get_audio_objects(
     _validate_profiler_time(time)
 
     if bus_pipeline_id is not None:
-        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
-            raise WwiseValidationError("bus_pipeline_id must be an int")
-        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
-            raise WwiseValidationError(
-                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
-            )
+        _validate_uint32(bus_pipeline_id, "bus_pipeline_id")
 
     if return_fields is not None:
-        if not isinstance(return_fields, list) or not return_fields:
-            raise WwiseValidationError("return_fields must be a non-empty list when provided")
-        bad = [f for f in return_fields if not isinstance(f, str) or f not in _AUDIO_OBJECT_RETURN_FIELDS]
-        if bad:
-            raise WwiseValidationError(
-                f"return_fields contains unknown values {bad}; "
-                f"valid: {sorted(_AUDIO_OBJECT_RETURN_FIELDS)}"
-            )
+        _validate_return_fields(return_fields, _AUDIO_OBJECT_RETURN_FIELDS)
 
     args: dict = {"time": time}
     if bus_pipeline_id is not None:
@@ -3412,7 +3427,7 @@ def profiler_get_audio_objects(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getAudioObjects")
 
 
 _BUS_RETURN_FIELDS = frozenset({
@@ -3455,22 +3470,10 @@ def profiler_get_busses(
     _validate_profiler_time(time)
 
     if bus_pipeline_id is not None:
-        if isinstance(bus_pipeline_id, bool) or not isinstance(bus_pipeline_id, int):
-            raise WwiseValidationError("bus_pipeline_id must be an int")
-        if bus_pipeline_id < 0 or bus_pipeline_id > 0xFFFFFFFF:
-            raise WwiseValidationError(
-                f"bus_pipeline_id must be a non-negative pipeline ID (schema: number >= 0; defensive uint32 cap applied), got {bus_pipeline_id}"
-            )
+        _validate_uint32(bus_pipeline_id, "bus_pipeline_id")
 
     if return_fields is not None:
-        if not isinstance(return_fields, list) or not return_fields:
-            raise WwiseValidationError("return_fields must be a non-empty list when provided")
-        bad = [f for f in return_fields if not isinstance(f, str) or f not in _BUS_RETURN_FIELDS]
-        if bad:
-            raise WwiseValidationError(
-                f"return_fields contains unknown values {bad}; "
-                f"valid: {sorted(_BUS_RETURN_FIELDS)}"
-            )
+        _validate_return_fields(return_fields, _BUS_RETURN_FIELDS)
 
     args: dict = {"time": time}
     if bus_pipeline_id is not None:
@@ -3499,7 +3502,7 @@ def profiler_get_busses(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getBusses")
 
 
 def profiler_get_rtpcs(
@@ -3543,7 +3546,7 @@ def profiler_get_rtpcs(
             operation="ak.wwise.core.profiler.getRTPCs",
             details={"error_type": type(e).__name__, "time": time, "timeout": timeout},
         )
-    return response if response is not None else {"return": []}
+    return _require_non_none(response, "ak.wwise.core.profiler.getRTPCs")
 
 
 def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
@@ -3590,7 +3593,7 @@ def profiler_save_capture(file_path: str, *, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.profiler.saveCapture",
             details={"error_type": type(e).__name__, "file_path": file_path, "timeout": timeout},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.profiler.saveCapture")
 
 
 def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
@@ -3629,7 +3632,7 @@ def remote_get_connection_status(*, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.remote.getConnectionStatus",
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.remote.getConnectionStatus")
 
 
 def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
@@ -3666,7 +3669,7 @@ def remote_get_available_consoles(*, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.remote.getAvailableConsoles",
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
-    return response if response is not None else {"consoles": []}
+    return _require_non_none(response, "ak.wwise.core.remote.getAvailableConsoles")
 
 
 def remote_connect(
@@ -3753,7 +3756,7 @@ def remote_connect(
                 "timeout": timeout,
             },
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.remote.connect")
 
 
 def remote_disconnect(*, timeout: float = 5.0) -> dict:
@@ -3789,4 +3792,4 @@ def remote_disconnect(*, timeout: float = 5.0) -> dict:
             operation="ak.wwise.core.remote.disconnect",
             details={"error_type": type(e).__name__, "timeout": timeout},
         )
-    return response if response is not None else {}
+    return _require_non_none(response, "ak.wwise.core.remote.disconnect")

@@ -150,6 +150,19 @@ def test_mcp_wrapper_delegates(mock_waapi):
     assert args["objects"][0]["@Reflections"] is False
 
 
+def test_set_plugin_property_rejects_leading_at(mock_waapi):
+    import wwise_python_lib
+
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.set_plugin_property(
+            object_path="\\X",
+            property_name="@Reflections",
+            value=1,
+        )
+
+    assert mock_waapi.call_count == 0
+
+
 def test_command_registered_in_COMMANDS():
     """Wrapper must be registered in COMMANDS or MCP clients cannot call it."""
     import wwise_mcp

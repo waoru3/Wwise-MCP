@@ -168,6 +168,32 @@ def test_mcp_wrapper_delegates(mock_waapi):
     assert args["objects"][0]["children"][0]["classId"] == 12345678
 
 
+def test_create_effect_share_set_rejects_leading_at(mock_waapi):
+    import wwise_python_lib
+
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.create_effect_share_set(
+            parent_path="\\Effects\\Default Work Unit",
+            name="n",
+            class_id=1,
+            properties={"@Foo": 1},
+        )
+    assert mock_waapi.call_count == 0
+
+
+def test_create_effect_share_set_rejects_non_str_property_key(mock_waapi):
+    import wwise_python_lib
+
+    with pytest.raises(WwiseValidationError):
+        wwise_python_lib.create_effect_share_set(
+            parent_path="\\Effects\\Default Work Unit",
+            name="n",
+            class_id=1,
+            properties={123: 1},
+        )
+    assert mock_waapi.call_count == 0
+
+
 def test_command_registered_in_COMMANDS():
     """Wrapper must be registered in COMMANDS or MCP clients cannot call it."""
     import wwise_mcp

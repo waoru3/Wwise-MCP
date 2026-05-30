@@ -399,13 +399,15 @@ def test_get_voices_returns_waapi_response(mock_waapi):
     assert result == {"return": [{"pipelineID": 1}, {"pipelineID": 2}]}
 
 
-def test_get_voices_normalises_none_to_empty_return_list(mock_waapi):
-    """Defensive: WAAPI sometimes returns None; wrapper normalises to {'return': []}."""
+def test_get_voices_raises_on_none(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
 
-    assert wwise_python_lib.profiler_get_voices() == {"return": []}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_get_voices()
 
 
 # ---------------------------------------------------------------------------

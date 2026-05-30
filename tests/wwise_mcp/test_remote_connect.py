@@ -87,10 +87,13 @@ def test_app_name_must_be_string(mock_waapi):
     mock_waapi.assert_not_called()
 
 
-def test_none_response_coerced_to_empty_dict(mock_waapi):
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
     mock_waapi.return_value = None
-    assert wwise_python_lib.remote_connect("127.0.0.1") == {}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.remote_connect("127.0.0.1")
 
 
 def test_response_passthrough(mock_waapi):

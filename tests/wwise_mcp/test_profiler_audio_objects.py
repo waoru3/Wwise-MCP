@@ -2,7 +2,7 @@
 
 Validates the WAAPI getAudioObjects wrapper: URI, args/options shape,
 return_fields whitelist (22 schema-exact fields), bus_pipeline_id bounds,
-error-details dict, None-response coercion to {"return": []}, shim
+error-details dict, None-response raising WwiseApiError, shim
 delegation, and COMMANDS registration.
 """
 from __future__ import annotations
@@ -247,13 +247,14 @@ def test_waapi_exception_wrapped_with_full_details(mock_waapi):
     assert exc.value.operation == "ak.wwise.core.profiler.getAudioObjects"
 
 
-def test_none_response_coerced_to_return_empty_list(mock_waapi):
-    """Schema returns a list - empty default must be {"return": []} not {}."""
+def test_none_response_raises(mock_waapi):
+    """None is an anomaly -> raises WwiseApiError."""
     import wwise_python_lib
+    from wwise_errors import WwiseApiError
 
     mock_waapi.return_value = None
-    result = wwise_python_lib.profiler_get_audio_objects()
-    assert result == {"return": []}
+    with pytest.raises(WwiseApiError):
+        wwise_python_lib.profiler_get_audio_objects()
 
 
 def test_existing_validation_error_passes_through(mock_waapi):
