@@ -10,6 +10,85 @@ import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
+import re
+import subprocess
+import platform
+import os
+
+FILESYSTEM_OPS = {
+    "get_all_audio_files_at_path_on_file_explorer",
+    "import_audio_files",
+}
+
+def _extract_path_from_callstring(call: str) -> str | None:
+    match = re.search(r'["\']([^"\']+)["\']', call)
+    return match.group(1) if match else None
+
+def _extract_source_paths_from_callstring(call: str) -> list[str]:
+    """Extract all source file paths from an import_audio_files call-string."""
+    paths = []
+    i = 0
+    while True:
+        # Find next quoted string
+        for q in ('"', "'"):
+            start = call.find(q, i)
+            if start == -1:
+                continue
+            end = call.find(q, start + 1)
+            if end == -1:
+                continue
+            candidate = call[start + 1:end]
+            # Only take it if it looks like a file path
+            if '/' in candidate or '\\' in candidate:
+                paths.append(candidate)
+            i = end + 1
+            break
+        else:
+            break
+    return paths
+
+def _confirm_path_access(paths_summary: str) -> bool:
+    if platform.system() == "Darwin":
+        # Escape quotes and newlines for AppleScript
+        msg = (
+            f"Wwise MCP — File System Access\n\n"
+            f"This plan includes file system operations:\n\n"
+            f"{paths_summary}\n\n"
+            f"Allow access?"
+        ).replace('"', '\\"').replace('\n', '\\n')
+        script = (
+            f'display dialog "{msg}" '
+            f'buttons {{"Deny", "Allow"}} '
+            f'default button "Allow" '
+            f'with title "Wwise MCP"'
+        )
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=120
+            )
+            return "Allow" in result.stdout
+        except subprocess.TimeoutExpired:
+            return False
+        except Exception:
+            logger.exception("Confirmation dialog failed.")
+            return False
+    else:
+        # Windows / Linux fallback — tkinter
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        confirmed = messagebox.askyesno(
+            title="Wwise MCP — File System Access",
+            message=f"This plan includes file system operations:\n\n{paths_summary}\n\nAllow access?"
+        )
+        root.quit()
+        root.destroy()
+        return confirmed
+
+
 logger = logging.getLogger(__name__)
 
 def get_log_dir() -> Path:
@@ -374,6 +453,25 @@ def get_property_and_reference_names(
             "Failed to retrieve valid property and reference names."
         )
         raise
+
+def get_music_transitions(
+    music_object_path: str
+) -> dict:
+    try:
+        if not music_object_path:
+            raise ValueError(
+                "Specify a music object path when retrieving music transitions."
+            )
+
+        return WwisePythonLibrary.get_music_transitions(
+            music_object_path
+        )
+
+    except Exception:
+        logger.exception(
+            "Failed to retrieve music transitions."
+        )
+        raise    
 
 def import_audio(
     source_paths: list[str],
@@ -1160,6 +1258,24 @@ COMMANDS: dict[str, Command] = {
             "Useful for determining which '@Property' and '@@Property' fields may be queried or set on the object."
             "Args: object_path : str. Returns dict."
     ),
+    "get_music_transitions": Command(
+        func=get_music_transitions,
+        doc="Retrieves all MusicTransition objects inside a music object such as a Music Switch Container, Music Playlist Container or Music Segment. "
+            "Useful for inspecting transition rules, sync behavior, fades, and transition segments. "
+            "Args: music_object_path: str. Returns dict. "
+            "Property reference for MusicTransition objects: "
+            "@ExitSourceAt — When to exit the source segment: 0=Immediate, 1=Next Grid, 2=Next Bar, 3=Next Beat, 4=Next Cue, 5=Next Custom Cue, 7=Exit Cue (6 is reserved). "
+            "@DestinationJumpPositionPreset (SyncTo) — Where to enter the destination: 0=Entry Cue, 1=Same Time as Playing Segment, 2=Random Cue, 3=Random Custom Cue, 4=Last Exit Position. "
+            "@DestinationPlaylistJumpTo (JumpTo) — Which segment to jump to in destination: 0=Start of Playlist, 1=Specific Playlist Item, 2=Last Played Segment, 3=Next Segment. "
+            "@SourceContextType / @DestinationContextType — 0=Any (null GUID), else specific object GUID in @SourceContextObject / @DestinationContextObject. "
+            "@UseTransitionObject — bool, whether a transition segment is used. "
+            "@EnableSourceFadeOut / @EnableDestinationFadeIn / @EnableTransitionFadeIn / @EnableTransitionFadeOut — bool, fade enable flags. "
+            "@FadeInDuration / @FadeOutDuration — fade durations in seconds. "
+            "@FadeInCurve / @FadeOutCurve — fade curve shapes. "
+            "@PlayDestinationPreEntry / @PlaySourcePostExit / @PlayTransitionPreEntry / @PlayTransitionPostExit — bool, pre/post entry/exit play flags. "
+            "@ExitSourceCustomCueMatchName / @JumpToCustomCueMatchName — str, custom cue names when using custom cue modes. "
+            "@JumpToCustomCueMatchMode — custom cue match mode for JumpTo. "
+    ),
     "import_audio_files" : Command(
         func=import_audio, 
         doc="Imports every audio file via its absolute path into the desired Wwise object path (include the object to be imported into the path as well). Validate destination path exists first via resolve_all_path_relationships_in if uncertain."
@@ -1593,12 +1709,46 @@ async def execute_plan(plan: list[str]) -> dict[str, any]:
     Execute a JSON list of call-strings produced by Claude.
     Returns simple success/failure info.
     """
-
     # Strip any undo group calls the AI may have included — execute_plan owns these
     plan = [
         step for step in plan
         if not step.startswith("begin_undo_group") and not step.startswith("end_undo_group")
     ]
+
+    # Check for filesystem ops and confirm with user before execution
+    fs_steps = [
+        step for step in plan
+        if any(op in step for op in FILESYSTEM_OPS)
+    ]
+    
+    if fs_steps:
+        raw_paths = []
+        for s in fs_steps:
+            if "import_audio_files" in s:
+                raw_paths.extend(_extract_source_paths_from_callstring(s))
+            else:
+                p = _extract_path_from_callstring(s)
+                if p:
+                    raw_paths.append(p + "/.")  # already a dir, sentinel for dirname
+
+        unique_dirs = sorted(set(os.path.dirname(p) for p in raw_paths))
+        # Remove parent dirs that are already covered by subdirs in the list
+        unique_dirs = [
+            d for d in unique_dirs
+            if not any(other.startswith(d + "/") for other in unique_dirs if other != d)
+        ]
+        paths_summary = "\n".join(f"  • {d}" for d in unique_dirs if d)
+
+        # Run dialog in worker thread to avoid blocking the asyncio event loop
+        # during user confirmation (which may take several seconds)
+        confirmed = await anyio.to_thread.run_sync(_confirm_path_access, paths_summary)
+
+        if not confirmed:
+            return {
+                "status": "error",
+                "error": "User denied file system access.",
+                "failed_step": fs_steps[0]
+            }
 
     # Inject undo group wrapping around authoring steps
     if plan and "connect_to_wwise" in plan[0]:
